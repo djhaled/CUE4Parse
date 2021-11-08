@@ -24,7 +24,7 @@ namespace CUE4Parse.UE4.Readers
             get => Versions.Game;
             set => Versions.Game = value;
         }
-        public UE4Version Ver
+        public FPackageFileVersion Ver
         {
             get => Versions.Ver;
             set => Versions.Ver = value;
@@ -44,14 +44,14 @@ namespace CUE4Parse.UE4.Readers
             Unsafe.CopyBlockUnaligned(ref ptr[0], ref bytes[0], (uint) length);
         }
         
-        public virtual T Read<T>()
+        public virtual T Read<T>() where T : struct
         {
             var size = Unsafe.SizeOf<T>();
             var buffer = ReadBytes(size);
             return Unsafe.ReadUnaligned<T>(ref buffer[0]);
         }
         
-        public virtual T[] ReadArray<T>(int length)
+        public virtual T[] ReadArray<T>(int length) where T : struct
         {
             var size = Unsafe.SizeOf<T>();
             var buffer = ReadBytes(size * length);
@@ -60,7 +60,7 @@ namespace CUE4Parse.UE4.Readers
             return result;
         }
 
-        public virtual void ReadArray<T>(T[] array)
+        public virtual void ReadArray<T>(T[] array) where T : struct
         {
             if (array.Length == 0) return;
             var size = Unsafe.SizeOf<T>();
