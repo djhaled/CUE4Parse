@@ -20,7 +20,7 @@ namespace CUE4Parse.UE4.Assets.Exports.Component.StaticMesh
                 bCooked = Ar.ReadBoolean();
             }
 
-            PerInstanceSMData = Ar.ReadBulkArray(() => new FInstancedStaticMeshInstanceData(Ar));
+            PerInstanceSMData = Ar.ReadBulkArray(Ar.Read<int>() / 2, Ar.Read<int>(), () => new FInstancedStaticMeshInstanceData(Ar));
 
             if (FRenderingObjectVersion.Get(Ar) >= FRenderingObjectVersion.Type.PerInstanceCustomData)
             {

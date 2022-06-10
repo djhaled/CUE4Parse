@@ -11,6 +11,7 @@ namespace CUE4Parse.UE4.Assets.Exports.Component.StaticMesh
         {
             base.Deserialize(Ar, validPos);
             LODData = Ar.ReadArray(() => new FStaticMeshComponentLODInfo(Ar));
+            Ar.Position += 4;
         }
 
         protected internal override void WriteJson(JsonWriter writer, JsonSerializer serializer)
