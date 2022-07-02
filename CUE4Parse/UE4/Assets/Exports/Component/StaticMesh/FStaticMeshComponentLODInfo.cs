@@ -48,7 +48,15 @@ namespace CUE4Parse.UE4.Assets.Exports.Component.StaticMesh
 
             if (!stripFlags.IsDataStrippedForServer())
             {
-                MapBuildDataId = Ar.Read<FGuid>();
+                if (FRenderingObjectVersion.Get(Ar) < FRenderingObjectVersion.Type.MapBuildDataSeparatePackage)
+                {
+                    var lightMap = Ar.ReadArray<FGuid>();
+                    var shadowMap = Ar.ReadArray<FGuid>();
+                }
+                else
+                {
+                    MapBuildDataId = Ar.Read<FGuid>();
+                }
             }
 
             if (!stripFlags.IsClassDataStripped(OverrideColorsStripFlag))
