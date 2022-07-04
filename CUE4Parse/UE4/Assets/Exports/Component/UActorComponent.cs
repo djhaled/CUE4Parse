@@ -7,7 +7,7 @@ namespace CUE4Parse.UE4.Assets.Exports.Component
 {
     public class UActorComponent : UObject
     {
-        public FSimpleMemberReference UCSModifiedProperties;
+        public FSimpleMemberReference[]? UCSModifiedProperties;
         
         public override void Deserialize(FAssetArchive Ar, long validPos)
         {
@@ -15,14 +15,14 @@ namespace CUE4Parse.UE4.Assets.Exports.Component
 
             if (FFortniteReleaseBranchCustomObjectVersion.Get(Ar) >= FFortniteReleaseBranchCustomObjectVersion.Type.ActorComponentUCSModifiedPropertiesSparseStorage)
             {
-                UCSModifiedProperties = new FSimpleMemberReference(Ar);
+                UCSModifiedProperties = Ar.ReadArray(() => new FSimpleMemberReference(Ar));
             }
         }
     }
 
     public class FSimpleMemberReference
     {
-        public FPackageIndex MemberParent;
+        public FPackageIndex? MemberParent;
         public FName MemberName;
         public FGuid MemberGuid;
         
