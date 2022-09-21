@@ -67,9 +67,9 @@ namespace cue4extractor
         }
         private static void Main(
             string ppath = @"D:\MainFR",
-            string PaksDirectory = @"D:\Epic Games\DeadByDaylight\DeadByDaylight\Content\Paks",
-            string aesKey = "0x2CCDFD22AD74FBFEE693A81AC11ACE57E6D10D0B8AC5FA90E793A130BC540ED4",
-            EGame Game = EGame.GAME_UE4_27)
+            string PaksDirectory = @"C:\Riot Games\VALORANT\live\ShooterGame\Content\Paks",
+            string aesKey = "0x4BE71AF2459CF83899EC9DC2CB60E22AC4B3047E0211034BBABE9D174C069DD6",
+            EGame Game = EGame.GAME_Valorant)
         {
             //// SCRIPT STARTS HERE ////
 
