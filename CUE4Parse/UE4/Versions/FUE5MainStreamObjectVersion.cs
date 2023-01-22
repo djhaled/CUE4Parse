@@ -183,6 +183,146 @@ namespace CUE4Parse.UE4.Versions
             // Remove the inline reduction bulkdata and replace it by a simple vertex and triangle count cache
             ConvertReductionBaseSkeletalMeshBulkDataToInlineReductionCacheData,
 
+            // Added some new MeshInfo to the FSkeletalMeshLODModel class.
+            SkeletalMeshLODModelMeshInfo,
+
+            // Add Texture DoScaleMipsForAlphaCoverage
+            TextureDoScaleMipsForAlphaCoverage,
+
+            // Fixed default value of volumetric cloud to be exact match with main view, more expenssive but we let user choosing how to lower the quality.
+            VolumetricCloudReflectionSampleCountDefaultUpdate,
+
+            // Use special BVH for TriangleMesh, instead of the AABBTree
+            UseTriangleMeshBVH,
+
+            // FDynamicMeshAttributeSet has Weight Maps. TDynamicAttributeBase serializes its name.
+            DynamicMeshAttributesWeightMapsAndNames,
+
+            // Switching FK control naming scheme to incorporate _CURVE for curve controls
+            FKControlNamingScheme,
+
+            // Fix-up for FRichCurveKey::TangentWeightMode, which were found to contain invalid value w.r.t the enum-type
+            RichCurveKeyInvalidTangentMode,
+
+            // Enforcing new automatic tangent behaviour, enforcing auto-tangents for Key0 and KeyN to be flat, for Animation Assets.
+            ForceUpdateAnimationAssetCurveTangents,
+
+            // SoundWave Update to use EditorBuildData for it's RawData
+            SoundWaveVirtualizationUpdate,
+
+            // Fix material feature level nodes to account for new SM6 input pin.
+            MaterialFeatureLevelNodeFixForSM6,
+
+            // Fix material feature level nodes to account for new SM6 input pin.
+            GeometryCollectionPerChildDamageThreshold,
+
+            // Move some Chaos flags into a bitfield
+            AddRigidParticleControlFlags,
+
+            // Allow each LiveLink controller to specify its own component to control
+            LiveLinkComponentPickerPerController,
+
+            // Remove Faces in Triangle Mesh BVH
+            RemoveTriangleMeshBVHFaces,
+
+            // Moving all nodal offset handling to Lens Component
+            LensComponentNodalOffset,
+
+            // GPU none interpolated spawning no longer calls the update script
+            FixGpuAlwaysRunningUpdateScriptNoneInterpolated,
+
+            // World partition streaming policy serialization only for cooked builds
+            WorldPartitionSerializeStreamingPolicyOnCook,
+
+            // Remove serialization of bounds relevant from  WorldPartitionActorDesc
+            WorldPartitionActorDescRemoveBoundsRelevantSerialization,
+
+            // Added IAnimationDataModel interface and replace UObject based representation for Animation Assets
+            // This version had to be undone. Animation assets saved between this and the subsequent backout version
+            // will be unable to be loaded
+            AnimationDataModelInterface_BackedOut,
+
+            // Deprecate LandscapeSplineActorDesc
+            LandscapeSplineActorDescDeprecation,
+
+            // Revert the IAnimationDataModel changes. Animation assets
+            BackoutAnimationDataModelInterface,
+
+            // Made stationary local and skylights behave similar to SM5
+            MobileStationaryLocalLights,
+
+            // Made ManagedArrayCollection::FValueType::Value always serialize when FValueType is
+            ManagedArrayCollectionAlwaysSerializeValue,
+
+            // Moving all distortion handling to Lens Component
+            LensComponentDistortion,
+
+            // Updated image media source path resolution logic
+            ImgMediaPathResolutionWithEngineOrProjectTokens,
+
+            // Add low resolution data in Height Field
+            AddLowResolutionHeightField,
+
+            // Low resolution data in Height Field will store one height for (6x6) 36 cells
+            DecreaseLowResolutionHeightField,
+
+            // Add damage propagation settings to geometry collections
+            GeometryCollectionDamagePropagationData,
+
+            // Wheel friction forces are now applied at tire contact point
+            VehicleFrictionForcePositionChange,
+
+            // Add flag to override MeshDeformer on a SkinnedMeshComponent.
+            AddSetMeshDeformerFlag,
+
+            // Replace FNames for class/actor paths with FSoftObjectPath
+            WorldPartitionActorDescActorAndClassPaths,
+
+            // Reintroducing AnimationDataModelInterface_BackedOut changes
+            ReintroduceAnimationDataModelInterface,
+
+            // Support 16-bit skin weights on SkeletalMesh
+            IncreasedSkinWeightPrecision,
+
+            // bIsUsedWithVolumetricCloud flag auto conversion
+            MaterialHasIsUsedWithVolumetricCloudFlag,
+
+            // bIsUsedWithVolumetricCloud flag auto conversion
+            UpdateHairDescriptionBulkData,
+
+            // Added TransformScaleMethod pin to SpawnActorFromClass node
+            SpawnActorFromClassTransformScaleMethod,
+
+            // Added support for the RigVM to run branches lazily
+            RigVMLazyEvaluation,
+
+            // Adding additional object version to defer out-of-date pose asset warning until next resaves
+            PoseAssetRawDataGUIDUpdate,
+
+            // Store function information (and compilation data) in blueprint generated class
+            RigVMSaveFunctionAccessInModel,
+
+            // Store the RigVM execute context struct the VM uses in the archive
+            RigVMSerializeExecuteContextStruct,
+
+            // Store the Visual Logger timestamp as a double
+            VisualLoggerTimeStampAsDouble,
+
+            // Add ThinSurface instance override support
+            MaterialInstanceBasePropertyOverridesThinSurface,
+
+            // Add refraction mode None, converted from legacy when the refraction pin is not plugged.
+            MaterialRefractionModeNone,
+
+            // Store serialized graph function in the function data
+            RigVMSaveSerializedGraphInGraphFunctionData,
+
+            // Animation Sequence now stores its frame-rate on a per-platform basis
+            PerPlatformAnimSequenceTargetFrameRate,
+
+            // New default for number of attributes on 2d grids
+            NiagaraGrid2DDefaultUnnamedAttributesZero,
+
             // -----<new versions can be added above this line>-------------------------------------------------
             VersionPlusOne,
             LatestVersion = VersionPlusOne - 1
@@ -199,6 +339,8 @@ namespace CUE4Parse.UE4.Versions
             return Ar.Game switch
             {
                 < EGame.GAME_UE5_0 => Type.BeforeCustomVersionWasAdded,
+                < EGame.GAME_UE5_1 => Type.TextureDoScaleMipsForAlphaCoverage,
+                < EGame.GAME_UE5_2 => Type.WorldPartitionActorDescActorAndClassPaths,
                 _ => Type.LatestVersion
             };
         }

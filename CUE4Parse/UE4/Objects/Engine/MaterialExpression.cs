@@ -1,4 +1,5 @@
-﻿using CUE4Parse.UE4.Assets.Readers;
+using CUE4Parse.UE4.Assets.Readers;
+using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Objects.UObject;
 using CUE4Parse.UE4.Versions;
 
@@ -22,6 +23,42 @@ namespace CUE4Parse.UE4.Objects.Engine
         }
     }
 
+    public class FMaterialInputVector : FExpressionInput
+    {
+        public bool UseConstant { get; protected set; }
+        public FVector Constant { get; protected set; }
+
+        public FMaterialInputVector()
+        {
+            UseConstant = false;
+            Constant = FVector.ZeroVector;
+        }
+
+        public FMaterialInputVector(FAssetArchive Ar) : base(Ar)
+        {
+            UseConstant = Ar.ReadBoolean();
+            Constant = Ar.Read<FVector>();
+        }
+    }
+
+    public class FMaterialInputVector2D : FExpressionInput
+    {
+        public bool UseConstant { get; protected set; }
+        public FVector2D Constant { get; protected set; }
+
+        public FMaterialInputVector2D()
+        {
+            UseConstant = false;
+            Constant = FVector2D.ZeroVector;
+        }
+
+        public FMaterialInputVector2D(FAssetArchive Ar) : base(Ar)
+        {
+            UseConstant = Ar.ReadBoolean();
+            Constant = Ar.Read<FVector2D>();
+        }
+    }
+
     public class FExpressionInput : IUStruct
     {
         public readonly int OutputIndex;
@@ -40,10 +77,10 @@ namespace CUE4Parse.UE4.Objects.Engine
 
         public FExpressionInput(FAssetArchive Ar)
         {
-            /*if (FCoreObjectVersion.Get(Ar) < FCoreObjectVersion.Type.MaterialInputNativeSerialize)
-            {
-                // TODO use property serialization instead
-            }*/
+            // if (FCoreObjectVersion.Get(Ar) < FCoreObjectVersion.Type.MaterialInputNativeSerialize)
+            // {
+            //     // TODO use property serialization instead
+            // }
 
             OutputIndex = Ar.Read<int>();
             InputName = FFrameworkObjectVersion.Get(Ar) >= FFrameworkObjectVersion.Type.PinsStoreFName ? Ar.ReadFName() : new FName(Ar.ReadFString());

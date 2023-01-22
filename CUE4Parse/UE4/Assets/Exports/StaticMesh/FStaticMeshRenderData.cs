@@ -1,4 +1,5 @@
 using System;
+using CUE4Parse.UE4.Assets.Exports.Nanite;
 using CUE4Parse.UE4.Assets.Readers;
 using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Objects.Engine;
@@ -28,6 +29,8 @@ namespace CUE4Parse.UE4.Assets.Exports.StaticMesh
             {
                 var minMobileLODIdx = Ar.Read<int>();
             }
+
+            if (Ar.Game == EGame.GAME_HYENAS) Ar.Position += 1;
 
             LODs = Ar.ReadArray(() => new FStaticMeshLODResources(Ar));
             if (Ar.Game >= EGame.GAME_UE4_23)
@@ -74,7 +77,7 @@ namespace CUE4Parse.UE4.Assets.Exports.StaticMesh
                 }
             }
 
-            Bounds = Ar.Read<FBoxSphereBounds>();
+            Bounds = new FBoxSphereBounds(Ar);
 
             if (Ar.Versions["StaticMesh.HasLODsShareStaticLighting"])
                 bLODsShareStaticLighting = Ar.ReadBoolean();
@@ -155,7 +158,7 @@ namespace CUE4Parse.UE4.Assets.Exports.StaticMesh
 
             writer.WritePropertyName("ScreenSize");
             serializer.Serialize(writer, value.ScreenSize);
-            
+
             writer.WriteEndObject();
         }
 

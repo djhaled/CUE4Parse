@@ -4,7 +4,7 @@ using CUE4Parse.UE4.Readers;
 namespace CUE4Parse.UE4.Versions
 {
     // Custom serialization version for changes made in the //Fortnite/Main stream
-    public class FFortniteMainBranchObjectVersion
+    public static class FFortniteMainBranchObjectVersion
     {
         public enum Type
         {
@@ -225,8 +225,47 @@ namespace CUE4Parse.UE4.Versions
 		    // if a widget exposes its named slot to everyone (even if it has content), which by default they wont any longer.
 		    WidgetInheritedNamedSlots,
 
-		    // -----<new versions can be added above this line>-------------------------------------------------
-		    VersionPlusOne,
+            // Added water HLOD material
+            WaterHLODSupportAdded,
+
+            // Moved parameters affecting Skeleton pose rendering from the PoseWatch class to the PoseWatchPoseElement class.
+            PoseWatchMigrateSkeletonDrawParametersToPoseElement,
+
+            // Reset default value for Water exclusion volumes to make them more intuitive and support the "it just works" philosophy.
+            WaterExclusionVolumeExcludeAllDefault,
+
+            // Added water non-tessellated LOD
+            WaterNontessellatedLODSupportAdded,
+
+            // Added FHierarchicalSimplification::SimplificationMethod
+            HierarchicalSimplificationMethodEnumAdded,
+
+            // Changed how world partition streaming cells are named
+            WorldPartitionStreamingCellsNamingShortened,
+
+            // Serialize ContentBundleGuid in WorldPartitionActorDesc
+            WorldPartitionActorDescSerializeContentBundleGuid,
+
+            // Serialize IsActorRuntimeOnly in WorldPartitionActorDesc
+            WorldPartitionActorDescSerializeActorIsRuntimeOnly,
+
+            // Add Nanite Material Override option to materials and material instances.
+            NaniteMaterialOverride,
+
+            // Serialize HLOD stats in HLODActorDesc
+            WorldPartitionHLODActorDescSerializeStats,
+
+            // WorldPartitionStreamingSourceComponent property deprecation
+            WorldPartitionStreamingSourceComponentTargetDeprecation,
+
+            // Fixed localization gathering for external actor packages
+            FixedLocalizationGatherForExternalActorPackage,
+
+            // Change HLODActors to RuntimeCells mapping to use a GUID instead of the cell name
+            WorldPartitionHLODActorUseSourceCellGuid,
+
+            // -----<new versions can be added above this line>-------------------------------------------------
+            VersionPlusOne,
 		    LatestVersion = VersionPlusOne - 1
         }
 
@@ -247,7 +286,9 @@ namespace CUE4Parse.UE4.Versions
                 < EGame.GAME_UE4_24 => Type.SupportVirtualBoneInRetargeting,
                 < EGame.GAME_UE4_26 => Type.AnimLayerGuidConformation,
                 < EGame.GAME_UE4_27 => Type.ChaosSolverPropertiesMoved,
-                < EGame.GAME_UE5_0 => Type.BPGCCookedEditorTags,
+                < EGame.GAME_UE5_0 => Type.RemoveLandscapeWaterInfo,
+                < EGame.GAME_UE5_1 => Type.GravityOverrideDefinedInWorldSpace,
+                < EGame.GAME_UE5_2 => Type.WorldPartitionHLODActorDescSerializeStats,
                 _ => Type.LatestVersion
             };
         }

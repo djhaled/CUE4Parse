@@ -42,6 +42,8 @@ namespace CUE4Parse.UE4.Assets.Exports.StaticMesh
         {
             var stripDataFlags = Ar.Read<FStripDataFlags>();
 
+            if (Ar.Game == EGame.GAME_TheDivisionResurgence) Ar.Position += 4;
+
             Sections = Ar.ReadArray(() => new FStaticMeshSection(Ar));
             MaxDeviation = Ar.Read<float>();
 
@@ -65,8 +67,15 @@ namespace CUE4Parse.UE4.Assets.Exports.StaticMesh
                 if (bInlined)
                 {
                     SerializeBuffers(Ar);
-                    if (Ar.Game == EGame.GAME_RogueCompany)
-                        Ar.Position += 10;
+                    switch (Ar.Game)
+                    {
+                        case EGame.GAME_RogueCompany:
+                            Ar.Position += 10;
+                            break;
+                        case EGame.GAME_TheDivisionResurgence:
+                            Ar.Position += 12;
+                            break;
+                    }
                 }
                 else
                 {
@@ -163,6 +172,8 @@ namespace CUE4Parse.UE4.Assets.Exports.StaticMesh
 
                 _ = new FWeightedRandomSampler(Ar);
             }
+
+            if (Ar.Game == EGame.GAME_SeaOfThieves) Ar.Position += 17;
         }
 
         public void SerializeBuffers(FArchive Ar)

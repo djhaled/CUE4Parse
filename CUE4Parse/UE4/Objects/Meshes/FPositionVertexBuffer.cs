@@ -20,6 +20,7 @@ namespace CUE4Parse.UE4.Objects.Meshes
             if (Ar.Game == EGame.GAME_Valorant)
             {
                 bool bUseFullPrecisionPositions = Ar.ReadBoolean();
+                _ = new FBoxSphereBounds(Ar);
                 if (!bUseFullPrecisionPositions)
                 {
                     var vertsHalf = Ar.ReadBulkArray<FVector4Half>();

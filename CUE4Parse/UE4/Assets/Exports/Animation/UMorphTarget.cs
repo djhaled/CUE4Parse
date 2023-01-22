@@ -1,3 +1,4 @@
+using System;
 using CUE4Parse.UE4.Assets.Readers;
 using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Objects.Engine;
@@ -19,7 +20,7 @@ namespace CUE4Parse.UE4.Assets.Exports.Animation
             PositionDelta = Ar.Read<FVector>();
             if (Ar.Ver < EUnrealEngineObjectUE4Version.MORPHTARGET_CPU_TANGENTZDELTA_FORMATCHANGE)
             {
-                TangentZDelta = (FVector)Ar.Read<FDeprecatedSerializedPackedNormal>();
+                TangentZDelta = (FVector) Ar.Read<FDeprecatedSerializedPackedNormal>();
             }
             else
             {
@@ -42,16 +43,49 @@ namespace CUE4Parse.UE4.Assets.Exports.Animation
 
         public FMorphTargetLODModel(FArchive Ar)
         {
-            Vertices = Ar.ReadArray(() => new FMorphTargetDelta(Ar));
-            NumBaseMeshVerts = Ar.Read<int>();
-            SectionIndices = Ar.ReadArray<int>();
-            bGeneratedByEngine = Ar.ReadBoolean();
+            if (FEditorObjectVersion.Get(Ar) < FEditorObjectVersion.Type.AddedMorphTargetSectionIndices)
+            {
+                Vertices = Ar.ReadArray(() => new FMorphTargetDelta(Ar));
+                NumBaseMeshVerts = Ar.Read<int>();
+                bGeneratedByEngine = false;
+            }
+            else if (FFortniteMainBranchObjectVersion.Get(Ar) < FFortniteMainBranchObjectVersion.Type.SaveGeneratedMorphTargetByEngine)
+            {
+                Vertices = Ar.ReadArray(() => new FMorphTargetDelta(Ar));
+                NumBaseMeshVerts = Ar.Read<int>();
+                SectionIndices = Ar.ReadArray<int>();
+                bGeneratedByEngine = false;
+            }
+            else
+            {
+                var bVerticesAreStrippedForCookedBuilds = false;
+                if (FUE5PrivateFrostyStreamObjectVersion.Get(Ar) >= FUE5PrivateFrostyStreamObjectVersion.Type.StripMorphTargetSourceDataForCookedBuilds)
+                {
+                    // Strip source morph data for cooked build if targets don't include mobile. Mobile uses CPU morphing which needs the source morph data.
+                    bVerticesAreStrippedForCookedBuilds = Ar.ReadBoolean();
+                }
+
+                if (bVerticesAreStrippedForCookedBuilds)
+                {
+                    Ar.Position += 4; // NumVertices
+                    Vertices = Array.Empty<FMorphTargetDelta>();
+                }
+                else
+                {
+                    Vertices = Ar.ReadArray(() => new FMorphTargetDelta(Ar));
+                }
+
+                NumBaseMeshVerts = Ar.Read<int>();
+                SectionIndices = Ar.ReadArray<int>();
+                bGeneratedByEngine = Ar.ReadBoolean();
+            }
         }
     }
 
     public class UMorphTarget : UObject
     {
         public FMorphTargetLODModel[]? MorphLODModels;
+
         public override void Deserialize(FAssetArchive Ar, long validPos)
         {
             base.Deserialize(Ar, validPos);

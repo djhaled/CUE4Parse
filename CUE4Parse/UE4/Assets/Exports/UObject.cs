@@ -84,6 +84,11 @@ namespace CUE4Parse.UE4.Assets.Exports
             {
                 ObjectGuid = Ar.Read<FGuid>();
             }
+
+            if (Ar.Game >= EGame.GAME_UE5_0 && Flags.HasFlag(EObjectFlags.RF_ClassDefaultObject))
+            {
+                Ar.Position += 4; // No idea honestly
+            }
         }
 
         /**
@@ -103,8 +108,9 @@ namespace CUE4Parse.UE4.Assets.Exports
         public void GetFullName(UObject? stopOuter, StringBuilder resultString, bool includeClassPackage = false)
         {
             resultString.Append(includeClassPackage ? Class?.GetPathName() : ExportType);
-            resultString.Append(' ');
+            resultString.Append('\'');
             GetPathName(stopOuter, resultString);
+            resultString.Append('\'');
         }
 
         /**
@@ -425,7 +431,7 @@ namespace CUE4Parse.UE4.Assets.Exports
             return IsFullNameStableForNetworking();
         }
 
-        public override string ToString() => GetFullName();
+        public override string ToString() => Name;
     }
 
     public static class PropertyUtil

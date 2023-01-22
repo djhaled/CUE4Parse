@@ -6,32 +6,29 @@ using CUE4Parse.UE4.Assets.Exports.Animation;
 using CUE4Parse.UE4.Assets.Exports.Material;
 using CUE4Parse.UE4.Assets.Exports.SkeletalMesh;
 using CUE4Parse.UE4.Assets.Exports.StaticMesh;
-using CUE4Parse.UE4.Assets.Exports.Texture;
 using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Objects.Meshes;
 using CUE4Parse.UE4.Writers;
-using CUE4Parse.Utils;
 using CUE4Parse_Conversion.ActorX;
 using CUE4Parse_Conversion.Materials;
 using CUE4Parse_Conversion.Meshes.PSK;
 using CUE4Parse.UE4.Objects.UObject;
+using CUE4Parse.Utils;
 using Serilog;
 
 namespace CUE4Parse_Conversion.Meshes
 {
     public class MeshExporter : ExporterBase
     {
-        public readonly string MeshName;
         public readonly List<Mesh> MeshLods;
 
-        public MeshExporter(USkeleton originalSkeleton)
+        public MeshExporter(USkeleton originalSkeleton, ExporterOptions options) : base(originalSkeleton, options)
         {
             MeshLods = new List<Mesh>();
-            MeshName = originalSkeleton.Owner?.Name ?? originalSkeleton.Name;
 
             if (!originalSkeleton.TryConvert(out var bones) || bones.Count == 0)
             {
-                Log.Logger.Warning($"Skeleton '{MeshName}' has no bone");
+                Log.Logger.Warning($"Skeleton '{ExportName}' has no bone");
                 return;
             }
 
@@ -41,33 +38,33 @@ namespace CUE4Parse_Conversion.Meshes
             Ar.SerializeChunkHeader(mainHdr, "ACTRHEAD");
             ExportSkeletonData(Ar, bones);
 
-            MeshLods.Add(new Mesh($"{MeshName}.psk", Ar.GetBuffer(), new List<MaterialExporter>()));
+            MeshLods.Add(new Mesh($"{PackagePath}.psk", Ar.GetBuffer(), new List<MaterialExporter2>()));
         }
 
-        public MeshExporter(UStaticMesh originalMesh,  ExporterOptions options, bool exportMaterials = true)
+        public MeshExporter(UStaticMesh originalMesh, ExporterOptions options, bool exportMaterials = true) : base(originalMesh, options)
         {
             MeshLods = new List<Mesh>();
-            MeshName = originalMesh.Owner?.Name ?? originalMesh.Name;
 
             if (!originalMesh.TryConvert(out var convertedMesh) || convertedMesh.LODs.Count == 0)
             {
-                Log.Logger.Warning($"Mesh '{MeshName}' has no LODs");
+                Log.Logger.Warning($"Mesh '{ExportName}' has no LODs");
                 return;
             }
 
-            var i = 0;
+            var i = -1;
             foreach (var lod in convertedMesh.LODs)
             {
+                i++;
                 if (lod.SkipLod)
                 {
-                    Log.Logger.Warning($"LOD {i} in mesh '{MeshName}' should be skipped");
+                    Log.Logger.Warning($"LOD {i} in mesh '{ExportName}' should be skipped");
                     continue;
                 }
 
                 using var Ar = new FArchiveWriter();
-                var materialExports = exportMaterials ? new List<MaterialExporter>() : null;
+                var materialExports = exportMaterials ? new List<MaterialExporter2>() : null;
                 string ext;
-                switch (options.MeshFormat)
+                switch (Options.MeshFormat)
                 {
                     case EMeshFormat.ActorX:
                         ext = "pskx";
@@ -75,31 +72,40 @@ namespace CUE4Parse_Conversion.Meshes
                         break;
                     case EMeshFormat.Gltf2:
                         ext = "glb";
-                        new Gltf(MeshName.SubstringAfterLast("/"), lod, materialExports).Save(options.MeshFormat, Ar);
+                        new Gltf(ExportName, lod, materialExports, Options).Save(Options.MeshFormat, Ar);
                         break;
                     case EMeshFormat.OBJ:
                         ext = "obj";
-                        new Gltf(MeshName.SubstringAfterLast("/"), lod, materialExports).Save(options.MeshFormat, Ar);
+                        new Gltf(ExportName, lod, materialExports, Options).Save(Options.MeshFormat, Ar);
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(options.MeshFormat), options.MeshFormat, null);
+                        throw new ArgumentOutOfRangeException(nameof(Options.MeshFormat), Options.MeshFormat, null);
                 }
 
-                MeshLods.Add(new Mesh($"{MeshName}_LOD{i}.{ext}", Ar.GetBuffer(), materialExports ?? new List<MaterialExporter>()));
-                if (options.LodFormat == ELodFormat.FirstLod) break;
-                i++;
+                MeshLods.Add(new Mesh($"{PackagePath}_LOD{i}.{ext}", Ar.GetBuffer(), materialExports ?? new List<MaterialExporter2>()));
+                if (Options.LodFormat == ELodFormat.FirstLod) break;
             }
         }
 
-        public MeshExporter(USkeletalMesh originalMesh, ExporterOptions options, bool exportMaterials = true)
+        public MeshExporter(USkeletalMesh originalMesh, ExporterOptions options, bool exportMaterials = true) : base(originalMesh, options)
         {
             MeshLods = new List<Mesh>();
-            MeshName = originalMesh.Owner?.Name ?? originalMesh.Name;
 
             if (!originalMesh.TryConvert(out var convertedMesh) || convertedMesh.LODs.Count == 0)
             {
-                Log.Logger.Warning($"Mesh '{MeshName}' has no LODs");
+                Log.Logger.Warning($"Mesh '{ExportName}' has no LODs");
                 return;
+            }
+
+            List<FPackageIndex>? totalSockets = null;
+            if (Options.SocketFormat != ESocketFormat.None)
+            {
+                totalSockets = new List<FPackageIndex>();
+                totalSockets.AddRange(originalMesh.Sockets);
+                if (originalMesh.Skeleton.TryLoad<USkeleton>(out var originalSkeleton))
+                {
+                    totalSockets.AddRange(originalSkeleton.Sockets);
+                }
             }
 
             var i = 0;
@@ -108,39 +114,41 @@ namespace CUE4Parse_Conversion.Meshes
                 var lod = convertedMesh.LODs[lodIndex];
                 if (lod.SkipLod)
                 {
-                    Log.Logger.Warning($"LOD {i} in mesh '{MeshName}' should be skipped");
+                    Log.Logger.Warning($"LOD {i} in mesh '{ExportName}' should be skipped");
                     continue;
                 }
 
                 using var Ar = new FArchiveWriter();
-                var materialExports = exportMaterials ? new List<MaterialExporter>() : null;
+                var materialExports = exportMaterials ? new List<MaterialExporter2>() : null;
                 var ext = "";
-                switch (options.MeshFormat)
+                switch (Options.MeshFormat)
                 {
                     case EMeshFormat.ActorX:
                         ext = convertedMesh.LODs[i].NumVerts > 65536 ? "pskx" : "psk";
-                        ExportSkeletalMeshLod(lod, convertedMesh.RefSkeleton, Ar, materialExports, options.ExportMorphTargets ? originalMesh.MorphTargets : null, lodIndex, options.Platform);
+                        ExportSkeletalMeshLod(lod, convertedMesh.RefSkeleton, Ar, materialExports,
+                            Options.ExportMorphTargets ? originalMesh.MorphTargets : null,
+                            totalSockets, lodIndex);
                         break;
                     case EMeshFormat.Gltf2:
                         ext = "glb";
-                        new Gltf(MeshName.SubstringAfterLast("/"), lod, convertedMesh.RefSkeleton,
-                            materialExports, options.ExportMorphTargets ? originalMesh.MorphTargets : null, lodIndex).Save(options.MeshFormat, Ar);
+                        new Gltf(ExportName, lod, convertedMesh.RefSkeleton, materialExports, Options,
+                            Options.ExportMorphTargets ? originalMesh.MorphTargets : null, lodIndex).Save(Options.MeshFormat, Ar);
                         break;
                     case EMeshFormat.OBJ:
                         ext = "obj";
-                        new Gltf(MeshName.SubstringAfterLast("/"), lod, convertedMesh.RefSkeleton, materialExports, null).Save(options.MeshFormat, Ar);
+                        new Gltf(ExportName, lod, convertedMesh.RefSkeleton, materialExports, Options).Save(Options.MeshFormat, Ar);
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(options.MeshFormat), options.MeshFormat, null);
+                        throw new ArgumentOutOfRangeException(nameof(Options.MeshFormat), Options.MeshFormat, null);
                 }
 
-                MeshLods.Add(new Mesh($"{MeshName}_LOD{i}.{ext}", Ar.GetBuffer(), materialExports ?? new List<MaterialExporter>()));
-                if (options.LodFormat == ELodFormat.FirstLod) break;
+                MeshLods.Add(new Mesh($"{PackagePath}_LOD{i}.{ext}", Ar.GetBuffer(), materialExports ?? new List<MaterialExporter2>()));
+                if (Options.LodFormat == ELodFormat.FirstLod) break;
                 i++;
             }
         }
 
-        private void ExportStaticMeshLods(CStaticMeshLod lod, FArchiveWriter Ar, List<MaterialExporter>? materialExports, ETexturePlatform platform = ETexturePlatform.DesktopMobile)
+        private void ExportStaticMeshLods(CStaticMeshLod lod, FArchiveWriter Ar, List<MaterialExporter2>? materialExports)
         {
             var share = new CVertexShare();
             var boneHdr = new VChunkHeader();
@@ -152,7 +160,7 @@ namespace CUE4Parse_Conversion.Meshes
                 share.AddVertex(vert.Position, vert.Normal);
             }
 
-            ExportCommonMeshData(Ar, lod.Sections.Value, lod.Verts, lod.Indices.Value, share, materialExports, platform);
+            ExportCommonMeshData(Ar, lod.Sections.Value, lod.Verts, lod.Indices.Value, share, materialExports);
 
             boneHdr.DataCount = 0;
             boneHdr.DataSize = 120;
@@ -166,7 +174,7 @@ namespace CUE4Parse_Conversion.Meshes
             ExportExtraUV(Ar, lod.ExtraUV.Value, lod.NumVerts, lod.NumTexCoords);
         }
 
-        private void ExportSkeletalMeshLod(CSkelMeshLod lod, List<CSkelMeshBone> bones, FArchiveWriter Ar, List<MaterialExporter>? materialExports, FPackageIndex[]? morphTargets, int lodIndex, ETexturePlatform platform = ETexturePlatform.DesktopMobile)
+        private void ExportSkeletalMeshLod(CSkelMeshLod lod, List<CSkelMeshBone> bones, FArchiveWriter Ar, List<MaterialExporter2>? materialExports, FPackageIndex[]? morphTargets, List<FPackageIndex>? sockets, int lodIndex)
         {
             var share = new CVertexShare();
             var infHdr = new VChunkHeader();
@@ -183,7 +191,8 @@ namespace CUE4Parse_Conversion.Meshes
                 share.AddVertex(vert.Position, vert.Normal, weightsHash);
             }
 
-            ExportCommonMeshData(Ar, lod.Sections.Value, lod.Verts, lod.Indices.Value, share, materialExports, platform);
+            ExportCommonMeshData(Ar, lod.Sections.Value, lod.Verts, lod.Indices.Value, share, materialExports);
+            if (sockets is not null) ExportSockets(Ar, sockets, bones);
             ExportSkeletonData(Ar, bones);
 
             var numInfluences = 0;
@@ -221,7 +230,7 @@ namespace CUE4Parse_Conversion.Meshes
         }
 
         private void ExportCommonMeshData(FArchiveWriter Ar, CMeshSection[] sections, CMeshVertex[] verts,
-            FRawStaticIndexBuffer indices, CVertexShare share, List<MaterialExporter>? materialExports, ETexturePlatform platform = ETexturePlatform.DesktopMobile)
+            FRawStaticIndexBuffer indices, CVertexShare share, List<MaterialExporter2>? materialExports)
         {
             var mainHdr = new VChunkHeader();
             var ptsHdr = new VChunkHeader();
@@ -328,7 +337,7 @@ namespace CUE4Parse_Conversion.Meshes
                 if (sections[i].Material?.Load<UMaterialInterface>() is { } tex)
                 {
                     materialName = tex.Name;
-                    materialExports?.Add(new MaterialExporter(tex, true, platform));
+                    materialExports?.Add(new MaterialExporter2(tex, Options));
                 }
                 else materialName = $"material_{i}";
 
@@ -416,7 +425,7 @@ namespace CUE4Parse_Conversion.Meshes
         public void ExportMorphTargets(FArchiveWriter Ar, CSkelMeshLod lod, CVertexShare share, FPackageIndex[]? morphTargets, int lodIndex)
         {
             if (morphTargets == null) return;
-            
+
             var morphInfoHdr = new VChunkHeader { DataCount = morphTargets.Length, DataSize = 64 + sizeof(int) };
             Ar.SerializeChunkHeader(morphInfoHdr, "MRPHINFO");
 
@@ -424,7 +433,7 @@ namespace CUE4Parse_Conversion.Meshes
             for (var i = 0; i < morphTargets.Length; i++)
             {
                 var morphTarget = morphTargets[i].Load<UMorphTarget>();
-                if (morphTarget?.MorphLODModels == null || morphTarget.MorphLODModels.Length < lodIndex)
+                if (morphTarget?.MorphLODModels == null || morphTarget.MorphLODModels.Length <= lodIndex)
                     continue;
 
                 var morphModel = morphTarget.MorphLODModels[lodIndex];
@@ -438,7 +447,7 @@ namespace CUE4Parse_Conversion.Meshes
                     var index = FindVertex(vertex.Position, share.Points);
                     if (index == -1) continue;
                     if (localMorphDeltas.Any(x => x.PointIdx == index)) continue;
-                    
+
                     var morphData = new VMorphData(delta.PositionDelta, delta.TangentZDelta, index);
                     localMorphDeltas.Add(morphData);
                     morphVertCount++;
@@ -449,12 +458,67 @@ namespace CUE4Parse_Conversion.Meshes
                 var morphInfo = new VMorphInfo(morphTarget.Name, morphVertCount);
                 morphInfo.Serialize(Ar);
             }
-            
+
             var morphDataHdr = new VChunkHeader { DataCount = morphDeltas.Count, DataSize = Constants.VMorphData_SIZE };
             Ar.SerializeChunkHeader(morphDataHdr, "MRPHDATA");
             foreach (var delta in morphDeltas)
             {
                 delta.Serialize(Ar);
+            }
+        }
+
+        public void ExportSockets(FArchiveWriter Ar, List<FPackageIndex> sockets, List<CSkelMeshBone> bones)
+        {
+            switch (Options.SocketFormat)
+            {
+                case ESocketFormat.Socket:
+                {
+                    var socketInfoHdr = new VChunkHeader { DataCount = sockets.Count, DataSize = Constants.VSocket_SIZE };
+                    Ar.SerializeChunkHeader(socketInfoHdr, "SKELSOCK");
+
+                    for (var i = 0; i < sockets.Count; i++)
+                    {
+                        var socket = sockets[i].Load<USkeletalMeshSocket>();
+                        if (socket is null) continue;
+
+                        var pskSocket = new VSocket(socket.SocketName.Text, socket.BoneName.Text, socket.RelativeLocation, socket.RelativeRotation, socket.RelativeScale);
+                        pskSocket.Serialize(Ar);
+                    }
+
+                    break;
+                }
+                case ESocketFormat.Bone:
+                {
+                    for (var i = 0; i < sockets.Count; i++)
+                    {
+                        var socket = sockets[i].Load<USkeletalMeshSocket>();
+                        if (socket is null) continue;
+
+                        var targetBoneIdx = -1;
+                        for (var j = 0; j < bones.Count; j++)
+                        {
+                            if (bones[j].Name.Text.Equals(socket.BoneName.Text))
+                            {
+                                targetBoneIdx = j;
+                                break;
+                            }
+                        }
+
+                        if (targetBoneIdx == -1) continue;
+
+                        var meshBone = new CSkelMeshBone
+                        {
+                            Name = socket.SocketName.Text,
+                            ParentIndex = targetBoneIdx,
+                            Position = socket.RelativeLocation,
+                            Orientation = socket.RelativeRotation.Quaternion()
+                        };
+
+                        bones.Add(meshBone);
+                    }
+
+                    break;
+                }
             }
         }
 
@@ -470,22 +534,24 @@ namespace CUE4Parse_Conversion.Meshes
         }
 
         /// <param name="baseDirectory"></param>
-        /// <param name="savedFileName"></param>
+        /// <param name="label"></param>
+        /// <param name="savedFilePath"></param>
         /// <returns>true if *ALL* lods were successfully exported</returns>
-        public override bool TryWriteToDir(DirectoryInfo baseDirectory, out string savedFileName)
+        public override bool TryWriteToDir(DirectoryInfo baseDirectory, out string label, out string savedFilePath)
         {
             var b = false;
-            savedFileName = MeshName.SubstringAfterLast('/');
+            label = string.Empty;
+            savedFilePath = PackagePath;
             if (MeshLods.Count == 0) return b;
 
             var outText = "LOD ";
             for (var i = 0; i < MeshLods.Count; i++)
             {
-                b |= MeshLods[i].TryWriteToDir(baseDirectory, out savedFileName);
+                b |= MeshLods[i].TryWriteToDir(baseDirectory, out label, out savedFilePath);
                 outText += $"{i} ";
             }
 
-            savedFileName = outText + $"as '{savedFileName.SubstringAfterWithLast('.')}' for '{MeshName.SubstringAfterLast('/')}'";
+            label = outText + $"as '{savedFilePath.SubstringAfterWithLast('.')}' for '{ExportName}'";
             return b;
         }
 

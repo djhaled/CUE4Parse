@@ -23,6 +23,7 @@ namespace CUE4Parse.UE4.Assets.Exports.SkeletalMesh
             bool bExtraBoneInfluences;
             uint maxBoneInfluences;
             bool bUse16BitBoneIndex;
+            bool bUse16BitBoneWeight;
             uint numVertices;
             uint numBones;
 
@@ -56,6 +57,10 @@ namespace CUE4Parse.UE4.Assets.Exports.SkeletalMesh
                 {
                     bUse16BitBoneIndex = Ar.ReadBoolean();
                 }
+                // if (FUE5MainStreamObjectVersion.Get(Ar) >= FUE5MainStreamObjectVersion.Type.IncreasedSkinWeightPrecision) // TODO: fortnite support
+                // {
+                //     bUse16BitBoneWeight = Ar.ReadBoolean();
+                // }
             }
             #endregion
 

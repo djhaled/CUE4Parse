@@ -26,7 +26,7 @@ namespace CUE4Parse.UE4.Assets.Exports.Texture
 
         public FTexturePlatformData(FAssetArchive Ar)
         {
-            if (Ar.Game >= EGame.GAME_UE5_0 && Ar.IsFilterEditorOnly)
+            if (Ar is { Game: >= EGame.GAME_UE5_0, IsFilterEditorOnly: true })
             {
                 const long PlaceholderDerivedDataSize = 16;
                 Ar.Position += PlaceholderDerivedDataSize;
@@ -46,7 +46,14 @@ namespace CUE4Parse.UE4.Assets.Exports.Texture
                 PackedData = Ar.Read<int>();
             }
 
-            PixelFormat = Ar.ReadFString();
+            PixelFormat = Ar.Game == EGame.GAME_GearsOfWar4 ? Ar.ReadFName().Text : Ar.ReadFString();
+
+            if (Ar.Game == EGame.GAME_FinalFantasy7Remake && (PackedData & 0xffff) == 16384)
+            {
+                var unk0 = Ar.Read<int>();
+                var unk1 = Ar.Read<int>();
+                var mapNum = Ar.Read<int>();
+            }
 
             if ((PackedData & BitMask_HasOptData) == BitMask_HasOptData)
             {
@@ -56,7 +63,19 @@ namespace CUE4Parse.UE4.Assets.Exports.Texture
             FirstMipToSerialize = Ar.Read<int>(); // only for cooked, but we don't read FTexturePlatformData for non-cooked textures
 
             var mipCount = Ar.Read<int>();
-            if (mipCount != 1 && Ar.Platform == ETexturePlatform.Playstation) mipCount /= 3; // TODO: Some mips are corrupted, so this doesn't work 100% of the time.
+            if (Ar.Platform == ETexturePlatform.Playstation && mipCount != 1) mipCount /= 3; // TODO: Some mips are corrupted, so this doesn't work 100% of the time.
+
+            if (Ar.Game == EGame.GAME_FinalFantasy7Remake)
+            {
+                var firstMip = new FTexture2DMipMap(Ar);
+                var val = Ar.Read<int>();
+                if (val != PackedData)
+                {
+                    // oh no
+                }
+
+                Ar.Position += 4;
+            }
 
             Mips = new FTexture2DMipMap[mipCount];
             for (var i = 0; i < Mips.Length; i++)

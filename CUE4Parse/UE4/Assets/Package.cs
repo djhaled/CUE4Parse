@@ -4,10 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using CUE4Parse.FileProvider;
+using CUE4Parse.GameTypes.ACE7.Encryption;
 using CUE4Parse.MappingsProvider;
 using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.Assets.Readers;
 using CUE4Parse.UE4.Assets.Utils;
+using CUE4Parse.UE4.Exceptions;
 using CUE4Parse.UE4.Objects.UObject;
 using CUE4Parse.UE4.Readers;
 using CUE4Parse.UE4.Versions;
@@ -30,11 +32,19 @@ namespace CUE4Parse.UE4.Assets
         private ExportLoader[] _exportLoaders; // Nonnull if useLazySerialization is false
 
         public Package(FArchive uasset, FArchive? uexp, Lazy<FArchive?>? ubulk = null, Lazy<FArchive?>? uptnl = null, IFileProvider? provider = null, TypeMappings? mappings = null, bool useLazySerialization = true)
-            : base(uasset.Name.SubstringBeforeLast("."), provider, mappings)
+            : base(uasset.Name.SubstringBeforeLast('.'), provider, mappings)
         {
             // We clone the version container because it can be modified with package specific versions when reading the summary
             uasset.Versions = (VersionContainer) uasset.Versions.Clone();
-            var uassetAr = new FAssetArchive(uasset, this);
+            FAssetArchive uassetAr;
+            ACE7XORKey? xorKey = null;
+            ACE7Decrypt? decryptor = null;
+            if (uasset.Game == EGame.GAME_AceCombat7)
+            {
+                decryptor = new ACE7Decrypt();
+                uassetAr = new FAssetArchive(decryptor.DecryptUassetArchive(uasset, out xorKey), this);
+            }
+            else uassetAr = new FAssetArchive(uasset, this);
             Summary = new FPackageFileSummary(uassetAr);
 
             uassetAr.SeekAbsolute(Summary.NameOffset, SeekOrigin.Begin);
@@ -61,7 +71,15 @@ namespace CUE4Parse.UE4.Assets
                 PreloadDependencies = uassetAr.ReadArray(Summary.PreloadDependencyCount, () => new FPackageIndex(uassetAr));
             }
 
-            var uexpAr = uexp != null ? new FAssetArchive(uexp, this, (int) uassetAr.Length) : uassetAr;
+            FAssetArchive uexpAr;
+            if (uexp != null)
+            {
+                if (uasset.Game == EGame.GAME_AceCombat7 && decryptor != null && xorKey != null)
+                {
+                    uexpAr = new FAssetArchive(decryptor.DecryptUexpArchive(uexp, xorKey), this, (int) uassetAr.Length);
+                } else uexpAr = new FAssetArchive(uexp, this, (int) uassetAr.Length);
+            }
+            else uexpAr = uassetAr;
 
             if (ubulk != null)
             {
@@ -75,6 +93,9 @@ namespace CUE4Parse.UE4.Assets
                 var offset = Summary.BulkDataStartOffset;
                 uexpAr.AddPayload(PayloadType.UPTNL, offset, uptnl);
             }
+
+            if (HasFlags(EPackageFlags.PKG_UnversionedProperties) && mappings == null)
+                throw new ParserException("Package has unversioned properties but mapping file is missing, can't serialize");
 
             if (useLazySerialization)
             {
@@ -176,7 +197,9 @@ namespace CUE4Parse.UE4.Assets
                 importPackage = package as Package;
             if (importPackage == null)
             {
+#if DEBUG
                 Log.Error("Missing native package ({0}) for import of {1} in {2}.", outerMostImport.ObjectName, import.ObjectName, Name);
+#endif
                 return new ResolvedImportObject(import, this);
             }
 
@@ -187,7 +210,9 @@ namespace CUE4Parse.UE4.Assets
                 outer = ResolveImport(import.OuterIndex)?.GetPathName();
                 if (outer == null)
                 {
+#if DEBUG
                     Log.Fatal("Missing outer for import of ({0}): {1} in {2} was not found, but the package exists.", Name, outerImport.ObjectName, importPackage.GetFullName());
+#endif
                     return new ResolvedImportObject(import, this);
                 }
             }
@@ -202,7 +227,9 @@ namespace CUE4Parse.UE4.Assets
                     return new ResolvedExportObject(i, importPackage);
             }
 
+#if DEBUG
             Log.Fatal("Missing import of ({0}): {1} in {2} was not found, but the package exists.", Name, import.ObjectName, importPackage.GetFullName());
+#endif
             return new ResolvedImportObject(import, this);
         }
 
@@ -215,7 +242,7 @@ namespace CUE4Parse.UE4.Assets
                 _export = package.ExportMap[exportIndex];
             }
 
-            public override FName Name => _export.ObjectName;
+            public override FName Name => _export?.ObjectName ?? "None";
             public override ResolvedObject Outer => Package.ResolvePackageIndex(_export.OuterIndex) ?? new ResolvedLoadedObject((UObject) Package);
             public override ResolvedObject? Class => Package.ResolvePackageIndex(_export.ClassIndex);
             public override ResolvedObject? Super => Package.ResolvePackageIndex(_export.SuperIndex);

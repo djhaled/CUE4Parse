@@ -12,19 +12,26 @@ namespace CUE4Parse.UE4.Objects.Engine.Curves
     {
         public readonly FAnimCurveType Type;
         public readonly FName[] LinkedBones;
-        public readonly byte MaxLOD;
+        public readonly int MaxLOD;
 
         public FCurveMetaData(FArchive Ar, FAnimPhysObjectVersion.Type FrwAniVer)
         {
             Type = new FAnimCurveType(Ar);
-            LinkedBones = Ar.ReadArray(() => Ar.ReadFName());
+            LinkedBones = Ar.ReadArray(Ar.ReadFName);
             if (FrwAniVer >= FAnimPhysObjectVersion.Type.AddLODToCurveMetaData)
             {
-                MaxLOD = Ar.Read<byte>();
+                MaxLOD = Ar.Game == EGame.GAME_KingdomHearts3 ? Ar.Read<int>() : Ar.Read<byte>();
+            }
+
+            if (Ar.Game == EGame.GAME_FinalFantasy7Remake)
+            {
+                // Cutscene mat replacements
+                var matAssetName = Ar.ReadFName();
+                var matName = Ar.ReadFName();
             }
         }
     }
-    
+
     public class FCurveMetaDataConverter : JsonConverter<FCurveMetaData>
     {
         public override void WriteJson(JsonWriter writer, FCurveMetaData value, JsonSerializer serializer)
@@ -33,7 +40,7 @@ namespace CUE4Parse.UE4.Objects.Engine.Curves
 
             writer.WritePropertyName("Type");
             serializer.Serialize(writer, value.Type);
-                
+
             writer.WritePropertyName("LinkedBones");
             writer.WriteStartArray();
             foreach (var bone in value.LinkedBones)
@@ -41,10 +48,10 @@ namespace CUE4Parse.UE4.Objects.Engine.Curves
                 serializer.Serialize(writer, bone);
             }
             writer.WriteEndArray();
-                
+
             writer.WritePropertyName("MaxLOD");
             writer.WriteValue(value.MaxLOD);
-            
+
             writer.WriteEndObject();
         }
 

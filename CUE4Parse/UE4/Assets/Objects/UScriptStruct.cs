@@ -1,8 +1,9 @@
-﻿using System;
-using CUE4Parse.FN.Objects;
-using CUE4Parse.TSW.Objects;
+using System;
+using CUE4Parse.GameTypes.FN.Objects;
+using CUE4Parse.GameTypes.TSW.Objects;
 using CUE4Parse.UE4.Assets.Exports.Engine.Font;
 using CUE4Parse.UE4.Assets.Exports.Material;
+using CUE4Parse.UE4.Assets.Exports.SkeletalMesh;
 using CUE4Parse.UE4.Assets.Readers;
 using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Objects.Core.Misc;
@@ -31,8 +32,8 @@ namespace CUE4Parse.UE4.Assets.Objects
         {
             StructType = structName switch
             {
-                "Box" => type == ReadType.ZERO ? new FBox() : Ar.Read<FBox>(),
-                "Box2D" => type == ReadType.ZERO ? new FBox2D() : Ar.Read<FBox2D>(),
+                "Box" => type == ReadType.ZERO ? new FBox() : new FBox(Ar),
+                "Box2D" => type == ReadType.ZERO ? new FBox2D() : new FBox2D(Ar),
                 "Color" => type == ReadType.ZERO ? new FColor() : Ar.Read<FColor>(),
                 "ColorMaterialInput" => type == ReadType.ZERO ? new FMaterialInput<FColor>() : new FMaterialInput<FColor>(Ar),
                 "DateTime" => type == ReadType.ZERO ? new FDateTime() : Ar.Read<FDateTime>(),
@@ -45,8 +46,8 @@ namespace CUE4Parse.UE4.Assets.Objects
                 "SimpleCurveKey" => type == ReadType.ZERO ? new FSimpleCurveKey() : Ar.Read<FSimpleCurveKey>(),
                 "ScalarMaterialInput" => type == ReadType.ZERO ? new FMaterialInput<float>() : new FMaterialInput<float>(Ar),
                 "ShadingModelMaterialInput" => type == ReadType.ZERO ? new FMaterialInput<uint>() : new FMaterialInput<uint>(Ar),
-                "VectorMaterialInput" => type == ReadType.ZERO ? new FMaterialInput<FVector>() : new FMaterialInput<FVector>(Ar),
-                "Vector2MaterialInput" => type == ReadType.ZERO ? new FMaterialInput<FVector2D>() : new FMaterialInput<FVector2D>(Ar),
+                "VectorMaterialInput" => type == ReadType.ZERO ? new FMaterialInputVector() : new FMaterialInputVector(Ar),
+                "Vector2MaterialInput" => type == ReadType.ZERO ? new FMaterialInputVector2D() : new FMaterialInputVector2D(Ar),
                 "MaterialAttributesInput" => type == ReadType.ZERO ? new FExpressionInput() : new FExpressionInput(Ar),
                 "SkeletalMeshSamplingLODBuiltData" => type == ReadType.ZERO ? new FSkeletalMeshSamplingLODBuiltData() : new FSkeletalMeshSamplingLODBuiltData(Ar),
                 "SkeletalMeshSamplingRegionBuiltData" => type == ReadType.ZERO ? new FSkeletalMeshSamplingRegionBuiltData() : new FSkeletalMeshSamplingRegionBuiltData(Ar),
@@ -63,11 +64,14 @@ namespace CUE4Parse.UE4.Assets.Objects
                 "NiagaraVariableBase" => new FNiagaraVariableBase(Ar),
                 "NiagaraVariableWithOffset" => new FNiagaraVariableWithOffset(Ar),
                 "NiagaraDataInterfaceGPUParamInfo" => new FNiagaraDataInterfaceGPUParamInfo(Ar),
+                "MaterialOverrideNanite" => type == ReadType.ZERO ? new FMaterialOverrideNanite() : new FMaterialOverrideNanite(Ar),
                 "MovieSceneEvalTemplatePtr" => new FMovieSceneEvalTemplatePtr(Ar),
                 "MovieSceneEvaluationFieldEntityTree" => new FMovieSceneEvaluationFieldEntityTree(Ar),
                 "MovieSceneEvaluationKey" => type == ReadType.ZERO ? new FMovieSceneEvaluationKey() : Ar.Read<FMovieSceneEvaluationKey>(),
-                "MovieSceneFloatChannel" => type == ReadType.ZERO ? new FMovieSceneFloatChannel() : new FMovieSceneFloatChannel(Ar),
-                "MovieSceneFloatValue" => type == ReadType.ZERO ? new FMovieSceneFloatValue() : Ar.Read<FMovieSceneFloatValue>(),
+                "MovieSceneFloatChannel" => type == ReadType.ZERO ? new FMovieSceneChannel<float>() : new FMovieSceneChannel<float>(Ar),
+                "MovieSceneDoubleChannel" => type == ReadType.ZERO ? new FMovieSceneChannel<double>() : new FMovieSceneChannel<double>(Ar),
+                "MovieSceneFloatValue" => type == ReadType.ZERO ? new FMovieSceneValue<float>() : Ar.Read<FMovieSceneValue<float>>(),
+                "MovieSceneDoubleValue" => type == ReadType.ZERO ? new FMovieSceneValue<double>() : Ar.Read<FMovieSceneValue<double>>(),
                 "MovieSceneFrameRange" => type == ReadType.ZERO ? new FMovieSceneFrameRange() : Ar.Read<FMovieSceneFrameRange>(),
                 "MovieSceneSegment" => type == ReadType.ZERO ? new FMovieSceneSegment() : new FMovieSceneSegment(Ar),
                 "MovieSceneSegmentIdentifier" => type == ReadType.ZERO ? new FMovieSceneSegmentIdentifier() : Ar.Read<FMovieSceneSegmentIdentifier>(),
@@ -76,9 +80,9 @@ namespace CUE4Parse.UE4.Assets.Objects
                 "MovieSceneTrackImplementationPtr" => new FMovieSceneTrackImplementationPtr(Ar),
                 "FontData" => new FFontData(Ar),
                 "FontCharacter" => new FFontCharacter(Ar),
-                "Plane" => type == ReadType.ZERO ? new FPlane() : Ar.Read<FPlane>(),
-                "Quat" => type == ReadType.ZERO ? new FQuat() : Ar.Read<FQuat>(),
-                "Rotator" => type == ReadType.ZERO ? new FRotator() : Ar.Read<FRotator>(),
+                "Plane" => type == ReadType.ZERO ? new FPlane() : new FPlane(Ar),
+                "Quat" => type == ReadType.ZERO ? new FQuat() : new FQuat(Ar),
+                "Rotator" => type == ReadType.ZERO ? new FRotator() : new FRotator(Ar),
                 "SectionEvaluationDataTree" => type == ReadType.ZERO ? new FSectionEvaluationDataTree() : new FSectionEvaluationDataTree(Ar), // Deprecated in UE4.26? can't find it anymore. Replaced by FMovieSceneEvaluationTrack
                 "StringClassReference" => type == ReadType.ZERO ? new FSoftObjectPath() : new FSoftObjectPath(Ar),
                 "SoftClassPath" => type == ReadType.ZERO ? new FSoftObjectPath() : new FSoftObjectPath(Ar),
@@ -86,13 +90,16 @@ namespace CUE4Parse.UE4.Assets.Objects
                 "SoftObjectPath" => type == ReadType.ZERO ? new FSoftObjectPath() : new FSoftObjectPath(Ar),
                 "Timespan" => type == ReadType.ZERO ? new FDateTime() : Ar.Read<FDateTime>(),
                 "UniqueNetIdRepl" => new FUniqueNetIdRepl(Ar),
-                "Vector" => type == ReadType.ZERO ? new FVector() : Ar.Read<FVector>(),
-                "Vector2D" => type == ReadType.ZERO ? new FVector2D() : Ar.Read<FVector2D>(),
-                "Vector4" => type == ReadType.ZERO ? new FVector4() : Ar.Read<FVector4>(),
-                "Vector_NetQuantize" => type == ReadType.ZERO ? new FVector() : Ar.Read<FVector>(),
-                "Vector_NetQuantize10" => type == ReadType.ZERO ? new FVector() : Ar.Read<FVector>(),
-                "Vector_NetQuantize100" => type == ReadType.ZERO ? new FVector() : Ar.Read<FVector>(),
-                "Vector_NetQuantizeNormal" => type == ReadType.ZERO ? new FVector() : Ar.Read<FVector>(),
+                "Vector" => type == ReadType.ZERO ? new FVector() : new FVector(Ar),
+                "Vector2D" => type == ReadType.ZERO ? new FVector2D() : new FVector2D(Ar),
+                "Vector3f" => type == ReadType.ZERO ? new TIntVector3<float>() : Ar.Read<TIntVector3<float>>(), // FVector but ignore LARGE_WORLD_COORDINATES
+                "Vector4" => type == ReadType.ZERO ? new FVector4() : new FVector4(Ar),
+                "Vector_NetQuantize" => type == ReadType.ZERO ? new FVector() : new FVector(Ar),
+                "Vector_NetQuantize10" => type == ReadType.ZERO ? new FVector() : new FVector(Ar),
+                "Vector_NetQuantize100" => type == ReadType.ZERO ? new FVector() : new FVector(Ar),
+                "Vector_NetQuantizeNormal" => type == ReadType.ZERO ? new FVector() : new FVector(Ar),
+                "ClothLODDataCommon" => type == ReadType.ZERO ? new FClothLODDataCommon() : new FClothLODDataCommon(Ar),
+                "ClothTetherData" => type == ReadType.ZERO ? new FClothTetherData() : new FClothTetherData(Ar),
 
                 // FortniteGame
                 "ConnectivityCube" => new FConnectivityCube(Ar),
