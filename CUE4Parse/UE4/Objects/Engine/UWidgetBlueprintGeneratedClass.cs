@@ -15,7 +15,7 @@ namespace CUE4Parse.UE4.Objects.Engine
         public FPackageIndex WidgetTree { get; private set; }
 
         public FPackageIndex[] Extensions { get; private set; }
-        public FPackageIndex[] FieldNotifyNamesBeka { get; private set; }
+        public FPackageIndex[] FieldNotifyNames { get; private set; }
         public int FieldNotifyStartBitNumber { get; private set; }
         public uint bClassRequiresNativeTick { get; private set; }
 
@@ -32,7 +32,7 @@ namespace CUE4Parse.UE4.Objects.Engine
             base.Deserialize(Ar, validPos);
             WidgetTree = new FPackageIndex(Ar);
             Extensions = Ar.ReadArray(() => new FPackageIndex(Ar));
-            FieldNotifyNamesBeka = Ar.ReadArray(() => new FPackageIndex(Ar));
+            FieldNotifyNames = Ar.ReadArray(() => new FPackageIndex(Ar));
             FieldNotifyStartBitNumber = 0;
             bClassRequiresNativeTick = 0;
             Bindings = Ar.ReadArray(() => new FPackageIndex(Ar));
