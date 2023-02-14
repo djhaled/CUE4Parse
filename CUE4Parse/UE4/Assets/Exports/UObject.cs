@@ -9,8 +9,9 @@ using CUE4Parse.UE4.Assets.Objects.Unversioned;
 using CUE4Parse.UE4.Assets.Readers;
 using CUE4Parse.UE4.Exceptions;
 using CUE4Parse.UE4.Objects.Core.Misc;
+using CUE4Parse.UE4.Objects.Engine;
 using CUE4Parse.UE4.Objects.UObject;
-using CUE4Parse.UE4.Versions;
+using CUE4Parse.Utils;
 using Newtonsoft.Json;
 using Serilog;
 
@@ -285,16 +286,9 @@ namespace CUE4Parse.UE4.Assets.Exports
             if (Template != null)
             {
                 writer.WritePropertyName("Template");
-                writer.WriteValue(Template.Name.Text);
+                writer.WriteValue(Template.Package.Name);
             }
-
-            // class
-            if (Class != null)
-            {
-                writer.WritePropertyName("Class");
-                serializer.Serialize(writer, Class.GetFullName());
-            }
-
+            var all_exports = this.Owner.GetExports();
             // export properties
             if (Properties.Count > 0)
             {
@@ -302,6 +296,29 @@ namespace CUE4Parse.UE4.Assets.Exports
                 writer.WriteStartObject();
                 foreach (var property in Properties)
                 {
+                    if (property.Name.Text == "RootComponent")
+                    {
+                        FPackageIndex value = (FPackageIndex)property.Tag.GenericValue;
+                        var object_load = all_exports.ElementAt(value.Index-1);
+                        foreach (var tprop in object_load.Properties)
+                        {
+                            if (tprop.Name.Text == "RelativeLocation" || tprop.Name.Text == "RelativeRotation" ||
+                                tprop.Name.Text == "RelativeScale3D")
+                            {
+                                writer.WritePropertyName(tprop.Name.Text);
+                                serializer.Serialize(writer, tprop.Tag);
+                            }
+                        }
+                        
+                        //FPackageIndex value = (FPackageIndex)property.Tag.GenericValue;
+                        //var object_load = all_exports.ElementAt(value.Index);
+                        //foreach(var tprop in object_load.Properties)
+                        //{
+                           // var newtext = "SceneAttach" + tprop.Name.Text; 
+                            //writer.WritePropertyName(newtext);
+                            //serializer.Serialize(writer, tprop.Tag);
+                        //}
+                    }
                     writer.WritePropertyName(property.Name.Text);
                     serializer.Serialize(writer, property.Tag);
                 }
