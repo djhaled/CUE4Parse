@@ -25,35 +25,6 @@ namespace CUE4Parse.UE4.Objects.Engine
         public FName[] NamedSlots { get; private set; }
         public FName[] AvailableNamedSlots { get; private set; }
         public FName[] InstanceNamedSlots { get; private set; }
-        // animation stuff
-        public struct FAnimSect : IUStruct
-        {
-            public float TimelineTime;
-            //public int FrameTime;
-            public float Value;
-        }
-        public struct FAnimSection : IUStruct
-        {
-            public string ProperName;
-            public FAnimSect[] Keys;
-        }
-        public struct FAnimTrackData : IUStruct
-        {
-            public string PropertyName;
-            public FAnimSection[] Sections;
-
-        }
-        public struct FAnimBindingData : IUStruct
-        {
-            public string BindingName;
-            public FAnimTrackData[] Tracks;
-
-        }
-        public struct FWidgetAnimData : IUStruct
-        {
-            public string AnimName;
-            public FAnimBindingData[] Bindings;
-        }
 
         // normal stuff
         public override void Deserialize(FAssetArchive Ar, long validPos)
