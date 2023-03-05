@@ -161,7 +161,7 @@ namespace CUE4Parse_Conversion.Animations
                     {
                         var bonePosition = FVector.ZeroVector; // GetBonePosition() will not alter bP and bO when animation tracks are not exists
                         var boneOrientation = FQuat.Identity;
-                        var boneScale = FVector.ZeroVector; //unused
+                        var boneScale = FVector.OneVector;
                         sequence.Tracks[boneIndex].GetBonePosition(frame, sequence.NumFrames, false, ref bonePosition, ref boneOrientation, ref boneScale);
 
                         var key = new VQuatAnimKey
@@ -172,7 +172,7 @@ namespace CUE4Parse_Conversion.Animations
                         };
                         // MIRROR_MESH
                         key.Orientation.Y *= -1;
-                        key.Orientation.W *= -1;
+                        //key.Orientation.W *= -1;
                         key.Position.Y *= -1;
                         key.Serialize(Ar);
                         keysCount--;
@@ -202,13 +202,9 @@ namespace CUE4Parse_Conversion.Animations
                     {
                         for (int boneIndex = 0; boneIndex < numBones; boneIndex++)
                         {
-                            var bonePosition = FVector.ZeroVector; //unused
-                            var boneOrientation = FQuat.Identity; //unused
+                            var bonePosition = FVector.ZeroVector;
+                            var boneOrientation = FQuat.Identity;
                             var boneScale = FVector.OneVector;
-                            if (sequence.bAdditive)
-                            {
-                                boneScale = FVector.ZeroVector;
-                            }
                             sequence.Tracks[boneIndex].GetBonePosition(frame, sequence.NumFrames, false, ref bonePosition, ref boneOrientation, ref boneScale);
 
                             var key = new VScaleAnimKey

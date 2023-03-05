@@ -91,7 +91,7 @@ namespace CUE4Parse_Conversion.Animations
                 }
                 if (numScaleKeys == 1)
                 {
-                    scaleX = scaleY = 0;
+                    scaleX = scaleY = 1;
                     scaleF = 0;
                 }
             }
