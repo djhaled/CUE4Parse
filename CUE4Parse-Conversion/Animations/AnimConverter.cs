@@ -34,35 +34,41 @@ namespace CUE4Parse_Conversion.Animations
         public float[] KeyScaleTime = Array.Empty<float>();
 
         // DstPos and/or DstQuat will not be changed when KeyPos and/or KeyQuat are empty.
-        public void GetBonePosition(float frame, float numFrames, bool loop, ref FVector dstPos, ref FQuat dstQuat)
+        public void GetBonePosition(float frame, float numFrames, bool loop, ref FVector dstPos, ref FQuat dstQuat, ref FVector dstScale)
         {
             // fast case: 1 frame only
             if (KeyTime.Length == 1 || numFrames == 1 || frame == 0)
             {
                 if (KeyPos.Length > 0) dstPos = KeyPos[0];
                 if (KeyQuat.Length > 0) dstQuat = KeyQuat[0];
+                if (KeyScale.Length > 0) dstScale = KeyScale[0];
                 return;
             }
 
             // data for lerping
-            int posX, rotX; // index of previous frame
-            int posY, rotY; // index of next frame
-            float posF, rotF; // fraction between X and Y for lerping
+            int posX, rotX, scaleX; // index of previous frame
+            int posY, rotY, scaleY; // index of next frame
+            float posF, rotF, scaleF; // fraction between X and Y for lerping
 
             var numTimeKeys = KeyTime.Length;
             var numPosKeys = KeyPos.Length;
             var numRotKeys = KeyQuat.Length;
+            var numScaleKeys = KeyScale.Length;
 
             if (numTimeKeys > 0)
             {
                 // here: KeyPos and KeyQuat sizes either equals to 1 or equals to KeyTime size
                 Trace.Assert(numPosKeys <= 1 || numPosKeys == numTimeKeys);
                 Trace.Assert(numRotKeys == 1 || numRotKeys == numTimeKeys);
+                Trace.Assert(numScaleKeys == 1 || numScaleKeys == numTimeKeys);
 
                 GetKeyParams(KeyTime, frame, numFrames, loop, out posX, out posY, out posF);
                 rotX = posX;
                 rotY = posY;
                 rotF = posF;
+                scaleX = posX;
+                scaleY = posY;
+                scaleF = posF;
 
                 if (numPosKeys <= 1)
                 {
@@ -74,11 +80,17 @@ namespace CUE4Parse_Conversion.Animations
                     rotX = rotY = 0;
                     rotF = 0;
                 }
+                if (numScaleKeys == 1)
+                {
+                    scaleX = scaleY = 0;
+                    scaleF = 0;
+                }
             }
             else
             {
                 // empty KeyTime array - keys are evenly spaced on a time line
                 // note: KeyPos and KeyQuat sizes can be different
+                //position
                 if (KeyPosTime.Length > 0)
                 {
                     GetKeyParams(KeyPosTime, frame, numFrames, loop, out posX, out posY, out posF);
@@ -105,7 +117,7 @@ namespace CUE4Parse_Conversion.Animations
                     posX = posY = 0;
                     posF = 0;
                 }
-
+                //rotation
                 if (KeyQuatTime.Length > 0)
                 {
                     GetKeyParams(KeyQuatTime, frame, numFrames, loop, out rotX, out rotY, out rotF);
@@ -132,8 +144,35 @@ namespace CUE4Parse_Conversion.Animations
                     rotX = rotY = 0;
                     rotF = 0;
                 }
-            }
 
+                //scale
+                if (KeyScaleTime.Length > 0)
+                {
+                    GetKeyParams(KeyScaleTime, frame, numFrames, loop, out scaleX, out scaleY, out scaleF);
+                }
+                else if (numScaleKeys > 1)
+                {
+                    var position = frame / numFrames * numScaleKeys;
+                    scaleX = position.FloorToInt();
+                    scaleF = position - scaleX;
+                    scaleY = scaleX + 1;
+                    if (scaleY >= numScaleKeys)
+                    {
+                        if (!loop)
+                        {
+                            scaleY = numScaleKeys - 1;
+                            scaleF = 0;
+                        }
+                        else
+                            scaleY = 0;
+                    }
+                }
+                else
+                {
+                    scaleX = scaleY = 0;
+                    scaleF = 0;
+                }
+            }
             // get position
             if (posF > 0)
                 dstPos = MathUtils.Lerp(KeyPos[posX], KeyPos[posY], posF);
@@ -144,6 +183,11 @@ namespace CUE4Parse_Conversion.Animations
                 dstQuat = FQuat.Slerp(KeyQuat[rotX], KeyQuat[rotY], rotF);
             else if (numRotKeys > 0) // do not change DstQuat when no keys
                 dstQuat = KeyQuat[rotX];
+            // get scale
+            if (scaleF > 0)
+                dstScale = MathUtils.Lerp(KeyScale[scaleX], KeyScale[scaleY], scaleF);
+            else if (numScaleKeys > 0) // do not change DstScale when no keys
+                dstScale = KeyScale[scaleX];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
