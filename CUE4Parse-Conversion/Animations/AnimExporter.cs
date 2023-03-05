@@ -78,7 +78,7 @@ namespace CUE4Parse_Conversion.Animations
         public AnimExporter(UAnimMontage animMontage, ExporterOptions options) : this(options, animMontage.Skeleton.Load<USkeleton>()!, animMontage) { }
         public AnimExporter(UAnimComposite animComposite, ExporterOptions options) : this(options, animComposite.Skeleton.Load<USkeleton>()!, animComposite) { }
 
-        private void DoExportPsa(CAnimSet anim, int seqIdx)
+        public void DoExportPsa(CAnimSet anim, int seqIdx)
         {
             var Ar = new FArchiveWriter();
 
@@ -161,7 +161,8 @@ namespace CUE4Parse_Conversion.Animations
                     {
                         var bonePosition = FVector.ZeroVector; // GetBonePosition() will not alter bP and bO when animation tracks are not exists
                         var boneOrientation = FQuat.Identity;
-                        sequence.Tracks[boneIndex].GetBonePosition(frame, sequence.NumFrames, false, ref bonePosition, ref boneOrientation);
+                        var boneScale = FVector.ZeroVector; //unused
+                        sequence.Tracks[boneIndex].GetBonePosition(frame, sequence.NumFrames, false, ref bonePosition, ref boneOrientation, ref boneScale);
 
                         var key = new VQuatAnimKey
                         {
@@ -201,10 +202,14 @@ namespace CUE4Parse_Conversion.Animations
                     {
                         for (int boneIndex = 0; boneIndex < numBones; boneIndex++)
                         {
+                            var bonePosition = FVector.ZeroVector; //unused
+                            var boneOrientation = FQuat.Identity; //unused
                             var boneScale = FVector.OneVector;
-
-                            if (frame < sequence.Tracks[boneIndex].KeyScale.Length)
-                                boneScale = sequence.Tracks[boneIndex].KeyScale[frame];
+                            if (sequence.bAdditive)
+                            {
+                                boneScale = FVector.ZeroVector;
+                            }
+                            sequence.Tracks[boneIndex].GetBonePosition(frame, sequence.NumFrames, false, ref bonePosition, ref boneOrientation, ref boneScale);
 
                             var key = new VScaleAnimKey
                             {
