@@ -1,49 +1,147 @@
-using System;
-using System.IO;
+using CUE4Parse_Conversion;
+using CUE4Parse_Conversion.Animations;
+using CUE4Parse_Conversion.Animations.PSA;
 using CUE4Parse.Encryption.Aes;
 using CUE4Parse.FileProvider;
+using CUE4Parse.UE4.Assets.Exports.Animation;
+using CUE4Parse.UE4.Assets.Exports.SkeletalMesh;
 using CUE4Parse.UE4.Objects.Core.Misc;
 using CUE4Parse.UE4.Versions;
-using CUE4Parse.MappingsProvider;
-using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.IO;
+using System;
+using CUE4Parse.UE4.Objects.Engine;
+using CUE4Parse.UE4.Assets.Objects;
+using CUE4Parse.UE4.Assets.Exports;
+using System.Runtime.Serialization;
 
-namespace CUE4Parse.Example
+public class Progam
 {
-    public static class Program
+    public static UAnimationAsset LocalUVDensities;
+    public struct FAsyncLoadedEquippableGunAnim
     {
-        private const string _gameDirectory = "F:\\FortniteGame\\Content\\Paks"; // Change game directory path to the one you have.
-        private const string _aesKey = "0xDD1E8B25464C492F0CCECB6740CC0B5C70DF3660D2FBDBD9A23C994256872EB9";
-        
-        private const string _mapping = "./mappings.usmap";
-        private const string _objectPath = "FortniteGame/Content/Athena/Items/Cosmetics/Characters/CID_A_112_Athena_Commando_M_Ruckus";
-        private const string _objectName = "FortCosmeticCharacterPartVariant_0";
+        public UAnimationAsset LoadedDefaultAsset;
+        public UAnimationAsset LoadedAltModeAsset;
+    }
+    public static UAnimSequence[] allAnims;
+    static bool ExportAnimation(UAnimSequence additiveAnimSequence)
+    {
+        var additiveSkeleton = additiveAnimSequence.Skeleton.Load<USkeleton>();
 
-        // Rick has 2 exports as of today
-        //      - CID_A_112_Athena_Commando_M_Ruckus
-        //      - FortCosmeticCharacterPartVariant_0
-        //
-        // this example will show you how to get them all or just one of them
-        
-        public static void Main(string[] args)
+        var reference = additiveAnimSequence.RefPoseSeq?.Load<UAnimSequence>();
+        if (reference == null)
         {
-            var provider = new DefaultFileProvider(_gameDirectory, SearchOption.TopDirectoryOnly, true, new VersionContainer(EGame.GAME_UE5_1));
-            provider.MappingsContainer = new FileUsmapTypeMappingsProvider(_mapping);
-
-            provider.Initialize(); // will scan local files and read them to know what it has to deal with (PAK/UTOC/UCAS/UASSET/UMAP)
-            provider.SubmitKey(new FGuid(), new FAesKey(_aesKey)); // decrypt basic info (1 guid - 1 key)
-            
-            provider.LoadLocalization(ELanguage.English); // explicit enough
-            
-            // these 2 lines will load all exports the asset has and transform them in a single Json string
-            var allExports = provider.LoadObjectExports(_objectPath);
-            var fullJson = JsonConvert.SerializeObject(allExports, Formatting.Indented);
-
-            // each exports have a name, these 2 lines will load only one export the asset has
-            // you must use "LoadObject" and provide the full path followed by a dot followed by the export name
-            var variantExport = provider.LoadObject(_objectPath + "." + _objectName);
-            var variantJson = JsonConvert.SerializeObject(variantExport, Formatting.Indented);
-
-            Console.WriteLine(variantJson); // Outputs the variantJson.
+            ExportNormalAnim(additiveAnimSequence);
+            return true;
         }
+        var referenceSkeleton = reference.Skeleton.Load<USkeleton>();
+
+        var additiveAnimSet = additiveSkeleton.ConvertAnims(additiveAnimSequence);
+        var referenceAnimSet = referenceSkeleton.ConvertAnims(reference);
+        var animSeq = additiveAnimSet.Sequences[0];
+
+        var additivePoses = FAnimationRuntime.LoadAsPoses(additiveAnimSet);
+
+        animSeq.OriginalSequence = referenceAnimSet.Sequences[0].OriginalSequence;
+        animSeq.Tracks = new List<CAnimTrack>(additivePoses[0].Bones.Length);
+        for (int i = 0; i < additivePoses[0].Bones.Length; i++)
+        {
+            animSeq.Tracks.Add(new CAnimTrack(additivePoses.Length));
+        }
+
+        FCompactPose[] referencePoses;
+        switch (additiveAnimSequence.RefPoseType)
+        {
+            //Use the Skeleton's ref pose as base
+            case EAdditiveBasePoseType.ABPT_RefPose:
+                referencePoses = FAnimationRuntime.LoadRestAsPoses(additiveAnimSet);
+                break;
+            //Use a whole animation as a base pose
+            case EAdditiveBasePoseType.ABPT_AnimScaled:
+                referencePoses = FAnimationRuntime.LoadAsPoses(referenceAnimSet);
+                break;
+            //Use one frame of an animation as a base pose
+            case EAdditiveBasePoseType.ABPT_AnimFrame:
+                referencePoses = FAnimationRuntime.LoadAsPoses(referenceAnimSet, additiveAnimSequence.RefFrameIndex);
+                break;
+            //Use one frame of this animation
+            case EAdditiveBasePoseType.ABPT_LocalAnimFrame:
+                referencePoses = FAnimationRuntime.LoadAsPoses(additiveAnimSet, additiveAnimSequence.RefFrameIndex);
+                break;
+            default:
+                referencePoses = FAnimationRuntime.LoadAsPoses(referenceAnimSet);
+                break;
+        }
+
+        //loop trough each Pose/Frame and add the output to the empty tracks
+        for (var index = 0; index < additivePoses.Length; index++)
+        {
+
+            var addPose = additivePoses[index];
+            var refPose = (FCompactPose)referencePoses[additiveAnimSequence.RefFrameIndex].Clone();
+            //var refPose = referencePoses[index];
+            switch (additiveAnimSequence.AdditiveAnimType)
+            {
+                case EAdditiveAnimationType.AAT_LocalSpaceBase:
+                    FAnimationRuntime.AccumulateLocalSpaceAdditivePoseInternal(refPose, addPose, 1);
+                    break;
+                case EAdditiveAnimationType.AAT_RotationOffsetMeshSpace:
+                    FAnimationRuntime.AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(refPose, addPose, 1);
+                    break;
+            }
+
+            refPose.AddToTracks(animSeq.Tracks, index);
+        }
+
+        additiveAnimSet.Sequences.Clear();
+        additiveAnimSet.Sequences.Add(animSeq);
+        var exporterOptions = new ExporterOptions();
+        var exporter = new AnimExporter(additiveAnimSequence, exporterOptions);
+        //export PSA
+        exporter.DoExportPsa(additiveAnimSet, 0);
+        Console.WriteLine($"Exported {additiveAnimSequence.Name} anim");
+        return exporter.TryWriteToDir(new DirectoryInfo(@"E:\BKImport"), out var label, out var fileName); ;
+    }
+    static bool ExportNormalAnim(UAnimSequence car)
+    {
+        var exporterOptions = new ExporterOptions();
+        var toSave = new Exporter(car, exporterOptions);
+        Console.WriteLine($"Exported {car.Name} anim");
+        bool isExported = toSave.TryWriteToDir(new DirectoryInfo(@"E:\BKImport"), out var label, out var fileName);
+        return isExported; 
+    }
+    static void Main(string[] args)
+    {
+        var provider = new DefaultFileProvider(@"E:\ValContentEvent\ShooterGame\Content\Paks", SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_Valorant));
+
+        provider.Initialize();
+        provider.SubmitKey(new FGuid(0), new FAesKey("0x4BE71AF2459CF83899EC9DC2CB60E22AC4B3047E0211034BBABE9D174C069DD6"));
+        List<UAnimSequence> animsList = new List<UAnimSequence>();
+        //load UAnimSeq from Object
+        //regular anim: Game/Characters/_Core/3P/Anims/Rifle/Core_Rifle_Idle.Core_Rifle_Idle
+        //local space: Game/Characters/_Core/3P/Anims/TP_Core_SprintAddN_UB.TP_Core_SprintAddN_UB
+        //mesh space: Game/Equippables/Guns/SniperRifles/Boltsniper/S0/1P/Anims/FP_Core_Boltsniper_S0_Fire.FP_Core_Boltsniper_S0_Fire
+        var additiveAnimSequence = provider.LoadObject<UAnimSequence>("Game/Equippables/Guns/SniperRifles/Boltsniper/S0/1P/Anims/FP_Core_Boltsniper_S0_Fire.FP_Core_Boltsniper_S0_Fire");
+        var gObj = provider.LoadObject("Game/Equippables/Guns/SubMachineGuns/Vector/Vector.Vector_C") as UBlueprintGeneratedClass;
+        var GunObj = gObj.ClassDefaultObject.Load();
+        Console.WriteLine("///");
+        // Normal Movement Anims
+        var idek = GunObj.GetOrDefault<UScriptMap>("CharacterAnims1P");
+        foreach (var item in idek.Properties)
+        {
+            var brand = item.Value;
+            var mouth = (SoftObjectProperty)brand;
+            var ide = mouth.Value.Load();
+            if (ide is UAnimationAsset)
+            {
+                Console.WriteLine("///");
+                Console.WriteLine($"Should export {ide.Name}");
+                animsList.Add((UAnimSequence)ide);
+                //ExportAnimation((UAnimSequence)ide);
+            }
+        }
+        // Ready Component
+        //var ReadyComp = GunObj.GetOrDefault<>
+
     }
 }

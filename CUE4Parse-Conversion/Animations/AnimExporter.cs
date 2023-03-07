@@ -20,7 +20,57 @@ namespace CUE4Parse_Conversion.Animations
         {
             AnimSequences = new List<Anim>();
         }
+        public static CAnimSet GetAdditive(UAnimSequence additiveAnimSequence)
+        {
+            var additiveSkeleton = additiveAnimSequence.Skeleton.Load<USkeleton>();
 
+            var reference = additiveAnimSequence.RefPoseSeq?.Load<UAnimSequence>();
+            var referenceSkeleton = reference.Skeleton.Load<USkeleton>();
+
+            var additiveAnimSet = additiveSkeleton.ConvertAnims(additiveAnimSequence);
+            var referenceAnimSet = referenceSkeleton.ConvertAnims(reference);
+            var animSeq = additiveAnimSet.Sequences[0];
+
+            var additivePoses = FAnimationRuntime.LoadAsPoses(additiveAnimSet);
+
+            animSeq.OriginalSequence = referenceAnimSet.Sequences[0].OriginalSequence;
+            animSeq.Tracks = new List<CAnimTrack>(additivePoses[0].Bones.Length);
+            for (int i = 0; i < additivePoses[0].Bones.Length; i++)
+            {
+                animSeq.Tracks.Add(new CAnimTrack(additivePoses.Length));
+            }
+            FCompactPose[] referencePoses = additiveAnimSequence.RefPoseType switch
+            {
+                EAdditiveBasePoseType.ABPT_RefPose => FAnimationRuntime.LoadRestAsPoses(additiveAnimSet),
+                // EAdditiveBasePoseType.ABPT_AnimScaled => FAnimationRuntime.LoadAsPoses(referenceAnimSet),
+                EAdditiveBasePoseType.ABPT_AnimFrame => FAnimationRuntime.LoadAsPoses(referenceAnimSet, additiveAnimSequence.RefFrameIndex),
+                EAdditiveBasePoseType.ABPT_LocalAnimFrame => FAnimationRuntime.LoadAsPoses(additiveAnimSet, additiveAnimSequence.RefFrameIndex),
+                _ => throw new NotImplementedException()
+            };
+            //loop trough each Pose/Frame and add the output to the empty tracks
+            for (var index = 0; index < additivePoses.Length; index++)
+            {
+
+                var addPose = additivePoses[index];
+                var refPose = (FCompactPose)referencePoses[additiveAnimSequence.RefFrameIndex].Clone();
+                //var refPose = referencePoses[index];
+                switch (additiveAnimSequence.AdditiveAnimType)
+                {
+                    case EAdditiveAnimationType.AAT_LocalSpaceBase:
+                        FAnimationRuntime.AccumulateLocalSpaceAdditivePoseInternal(refPose, addPose, 1);
+                        break;
+                    case EAdditiveAnimationType.AAT_RotationOffsetMeshSpace:
+                        FAnimationRuntime.AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(refPose, addPose, 1);
+                        break;
+                }
+
+                refPose.AddToTracks(animSeq.Tracks, index);
+            }
+
+            additiveAnimSet.Sequences.Clear();
+            additiveAnimSet.Sequences.Add(animSeq);
+            return additiveAnimSet;
+        }
         private AnimExporter(ExporterOptions options, USkeleton skeleton, UObject export, CAnimSet animSet)
             : this(export, options)
         {
@@ -30,6 +80,12 @@ namespace CUE4Parse_Conversion.Animations
             var originalAnim = animSet.GetPrimaryAnimObject();
             if (originalAnim == animSet.OriginalAnim || animSet.Sequences.Count == 1)
             {
+                //if ((UAnimSequence)originalAnim.REF)
+                var animSeq = originalAnim as UAnimSequence;
+                if (animSeq.IsValidAdditive())
+                {
+                    animSet = GetAdditive(animSeq);
+                }
                 DoExportPsa(animSet, 0);
             }
             else
@@ -78,7 +134,7 @@ namespace CUE4Parse_Conversion.Animations
         public AnimExporter(UAnimMontage animMontage, ExporterOptions options) : this(options, animMontage.Skeleton.Load<USkeleton>()!, animMontage) { }
         public AnimExporter(UAnimComposite animComposite, ExporterOptions options) : this(options, animComposite.Skeleton.Load<USkeleton>()!, animComposite) { }
 
-        private void DoExportPsa(CAnimSet anim, int seqIdx)
+        public void DoExportPsa(CAnimSet anim, int seqIdx)
         {
             var Ar = new FArchiveWriter();
 
@@ -225,7 +281,7 @@ namespace CUE4Parse_Conversion.Animations
             }
 
             // psa file is done
-            AnimSequences.Add(new Anim($"{PackagePath}_SEQ{seqIdx}.psa", Ar.GetBuffer()));
+            AnimSequences.Add(new Anim($"{PackagePath}.psa", Ar.GetBuffer()));
             Ar.Dispose();
 
             // generate configuration file with extended attributes
@@ -255,6 +311,7 @@ namespace CUE4Parse_Conversion.Animations
             label = outText + $"as '{savedFilePath.SubstringAfterWithLast('.')}' for '{ExportName}'";
             return b;
         }
+
 
         public override bool TryWriteToZip(out byte[] zipFile)
         {
