@@ -2,7 +2,7 @@
 {
     /**
      * Indicates animation data key format.
-     */
+     *//
     public enum AnimationKeyFormat : byte
     {
         AKF_ConstantKeyLerp,
