@@ -20,57 +20,7 @@ namespace CUE4Parse_Conversion.Animations
         {
             AnimSequences = new List<Anim>();
         }
-        public static CAnimSet GetAdditive(UAnimSequence additiveAnimSequence)
-        {
-            var additiveSkeleton = additiveAnimSequence.Skeleton.Load<USkeleton>();
 
-            var reference = additiveAnimSequence.RefPoseSeq?.Load<UAnimSequence>();
-            var referenceSkeleton = reference.Skeleton.Load<USkeleton>();
-
-            var additiveAnimSet = additiveSkeleton.ConvertAnims(additiveAnimSequence);
-            var referenceAnimSet = referenceSkeleton.ConvertAnims(reference);
-            var animSeq = additiveAnimSet.Sequences[0];
-
-            var additivePoses = FAnimationRuntime.LoadAsPoses(additiveAnimSet);
-
-            animSeq.OriginalSequence = referenceAnimSet.Sequences[0].OriginalSequence;
-            animSeq.Tracks = new List<CAnimTrack>(additivePoses[0].Bones.Length);
-            for (int i = 0; i < additivePoses[0].Bones.Length; i++)
-            {
-                animSeq.Tracks.Add(new CAnimTrack(additivePoses.Length));
-            }
-            FCompactPose[] referencePoses = additiveAnimSequence.RefPoseType switch
-            {
-                EAdditiveBasePoseType.ABPT_RefPose => FAnimationRuntime.LoadRestAsPoses(additiveAnimSet),
-                // EAdditiveBasePoseType.ABPT_AnimScaled => FAnimationRuntime.LoadAsPoses(referenceAnimSet),
-                EAdditiveBasePoseType.ABPT_AnimFrame => FAnimationRuntime.LoadAsPoses(referenceAnimSet, additiveAnimSequence.RefFrameIndex),
-                EAdditiveBasePoseType.ABPT_LocalAnimFrame => FAnimationRuntime.LoadAsPoses(additiveAnimSet, additiveAnimSequence.RefFrameIndex),
-                _ => throw new NotImplementedException()
-            };
-            //loop trough each Pose/Frame and add the output to the empty tracks
-            for (var index = 0; index < additivePoses.Length; index++)
-            {
-
-                var addPose = additivePoses[index];
-                var refPose = (FCompactPose)referencePoses[additiveAnimSequence.RefFrameIndex].Clone();
-                //var refPose = referencePoses[index];
-                switch (additiveAnimSequence.AdditiveAnimType)
-                {
-                    case EAdditiveAnimationType.AAT_LocalSpaceBase:
-                        FAnimationRuntime.AccumulateLocalSpaceAdditivePoseInternal(refPose, addPose, 1);
-                        break;
-                    case EAdditiveAnimationType.AAT_RotationOffsetMeshSpace:
-                        FAnimationRuntime.AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(refPose, addPose, 1);
-                        break;
-                }
-
-                refPose.AddToTracks(animSeq.Tracks, index);
-            }
-
-            additiveAnimSet.Sequences.Clear();
-            additiveAnimSet.Sequences.Add(animSeq);
-            return additiveAnimSet;
-        }
         private AnimExporter(ExporterOptions options, USkeleton skeleton, UObject export, CAnimSet animSet)
             : this(export, options)
         {
@@ -80,12 +30,6 @@ namespace CUE4Parse_Conversion.Animations
             var originalAnim = animSet.GetPrimaryAnimObject();
             if (originalAnim == animSet.OriginalAnim || animSet.Sequences.Count == 1)
             {
-                //if ((UAnimSequence)originalAnim.REF)
-                var animSeq = originalAnim as UAnimSequence;
-                if (animSeq.IsValidAdditive())
-                {
-                    animSet = GetAdditive(animSeq);
-                }
                 DoExportPsa(animSet, 0);
             }
             else
@@ -217,8 +161,8 @@ namespace CUE4Parse_Conversion.Animations
                     {
                         var bonePosition = FVector.ZeroVector; // GetBonePosition() will not alter bP and bO when animation tracks are not exists
                         var boneOrientation = FQuat.Identity;
-                        var useMeYouIdiot = FVector.OneVector;
-                        sequence.Tracks[boneIndex].GetBoneTransform(frame, sequence.NumFrames, ref boneOrientation, ref bonePosition, ref useMeYouIdiot);
+                        var boneScale = FVector.OneVector;
+                        sequence.Tracks[boneIndex].GetBonePosition(frame, sequence.NumFrames, false, ref bonePosition, ref boneOrientation, ref boneScale);
 
                         var key = new VQuatAnimKey
                         {
@@ -228,7 +172,7 @@ namespace CUE4Parse_Conversion.Animations
                         };
                         // MIRROR_MESH
                         key.Orientation.Y *= -1;
-                        key.Orientation.W *= -1;
+                        //key.Orientation.W *= -1;
                         key.Position.Y *= -1;
                         key.Serialize(Ar);
                         keysCount--;
@@ -258,10 +202,10 @@ namespace CUE4Parse_Conversion.Animations
                     {
                         for (int boneIndex = 0; boneIndex < numBones; boneIndex++)
                         {
+                            var bonePosition = FVector.ZeroVector;
+                            var boneOrientation = FQuat.Identity;
                             var boneScale = FVector.OneVector;
-
-                            if (frame < sequence.Tracks[boneIndex].KeyScale.Length)
-                                boneScale = sequence.Tracks[boneIndex].KeyScale[frame];
+                            sequence.Tracks[boneIndex].GetBonePosition(frame, sequence.NumFrames, false, ref bonePosition, ref boneOrientation, ref boneScale);
 
                             var key = new VScaleAnimKey
                             {
@@ -281,7 +225,7 @@ namespace CUE4Parse_Conversion.Animations
             }
 
             // psa file is done
-            AnimSequences.Add(new Anim($"{PackagePath}.psa", Ar.GetBuffer()));
+            AnimSequences.Add(new Anim($"{PackagePath}_SEQ{seqIdx}.psa", Ar.GetBuffer()));
             Ar.Dispose();
 
             // generate configuration file with extended attributes
@@ -311,7 +255,6 @@ namespace CUE4Parse_Conversion.Animations
             label = outText + $"as '{savedFilePath.SubstringAfterWithLast('.')}' for '{ExportName}'";
             return b;
         }
-
 
         public override bool TryWriteToZip(out byte[] zipFile)
         {
