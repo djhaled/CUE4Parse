@@ -43,6 +43,10 @@ namespace CUE4Parse_Conversion.Animations.PSA
                     var bonePosition = FVector.ZeroVector;
                     var boneScale = FVector.OneVector;
 
+                    if (boneIndex == 5)
+                    {
+                        int ds = 3;
+                    }
                     track.GetBoneTransform(refFrame, sequence.NumFrames, ref boneOrientation, ref bonePosition, ref boneScale);
 
                     switch (skeleton.BoneTree[boneIndex])

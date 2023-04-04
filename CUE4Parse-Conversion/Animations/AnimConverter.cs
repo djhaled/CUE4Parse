@@ -156,6 +156,7 @@ namespace CUE4Parse_Conversion.Animations
                     }
 
                     // Now create CAnimTracks with the data from those big buffers
+
                     for (var boneIndex = 0; boneIndex < numBones; boneIndex++)
                     {
                         var track = new CAnimTrack();
@@ -197,7 +198,8 @@ namespace CUE4Parse_Conversion.Animations
             {
                 EAdditiveBasePoseType.ABPT_RefPose => FAnimationRuntime.LoadRestAsPoses(skeleton),
                 EAdditiveBasePoseType.ABPT_AnimScaled => FAnimationRuntime.LoadAsPoses(refAnimSet.Sequences[0], refPoseSkel),
-                EAdditiveBasePoseType.ABPT_AnimFrame => FAnimationRuntime.LoadAsPoses(refAnimSet.Sequences[0], refPoseSkel, refFrameIndex),
+                //EAdditiveBasePoseType.ABPT_AnimFrame => FAnimationRuntime.LoadAsPoses(refAnimSet.Sequences[0], refPoseSkel, refFrameIndex),
+                EAdditiveBasePoseType.ABPT_AnimFrame => FAnimationRuntime.LoadAsPoses(refAnimSet.Sequences[0], refPoseSkel),
                 EAdditiveBasePoseType.ABPT_LocalAnimFrame => FAnimationRuntime.LoadAsPoses(animSeq, skeleton, refFrameIndex),
                 _ => throw new ArgumentOutOfRangeException("Unsupported additive type " + animSeq.OriginalSequence.RefPoseType)
             };
