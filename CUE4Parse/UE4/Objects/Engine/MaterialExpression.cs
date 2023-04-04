@@ -61,7 +61,7 @@ namespace CUE4Parse.UE4.Objects.Engine
 
     public class FExpressionInput : IUStruct
     {
-        public readonly UMaterialExpression Expression;
+        public readonly FPackageIndex Expression;
         public readonly int OutputIndex;
         public readonly FName InputName;
         public readonly int Mask;
@@ -85,9 +85,8 @@ namespace CUE4Parse.UE4.Objects.Engine
 
             if (Ar.Game >= EGame.GAME_UE5_1)
             {
-                // ???
+                Expression = new FPackageIndex(Ar);
             }
-
             OutputIndex = Ar.Read<int>();
             InputName = FFrameworkObjectVersion.Get(Ar) >= FFrameworkObjectVersion.Type.PinsStoreFName ? Ar.ReadFName() : new FName(Ar.ReadFString());
             Mask = Ar.Read<int>();
@@ -97,7 +96,7 @@ namespace CUE4Parse.UE4.Objects.Engine
             MaskA = Ar.Read<int>();
             if (Ar.Owner.HasFlags(EPackageFlags.PKG_FilterEditorOnly))
             {
-                ExpressionName = Ar.ReadFName();
+                //ExpressionName = Ar.ReadFName();
             }
         }
     }

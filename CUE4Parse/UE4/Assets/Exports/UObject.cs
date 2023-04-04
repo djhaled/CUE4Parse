@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -7,6 +7,7 @@ using CUE4Parse.MappingsProvider;
 using CUE4Parse.UE4.Assets.Objects;
 using CUE4Parse.UE4.Assets.Objects.Unversioned;
 using CUE4Parse.UE4.Assets.Readers;
+using CUE4Parse.UE4.IO.Objects;
 using CUE4Parse.UE4.Exceptions;
 using CUE4Parse.UE4.Objects.Core.Misc;
 using CUE4Parse.UE4.Objects.UObject;
@@ -268,10 +269,31 @@ namespace CUE4Parse.UE4.Assets.Exports
             writer.WriteValue(Name);
 
             // outer
-            if (Outer != null && Outer != package)
+            if (Outer != null)
             {
                 writer.WritePropertyName("Outer");
-                writer.WriteValue(Outer.Name); // TODO serialize the path too
+                bool found = false;
+                for (int i = 0; i < package.ExportsLazy.Length; i++)
+                {
+                    var item = package.ExportsLazy[i];
+                    if (item.Value.Name == Outer.Name)
+                    {
+                        writer.WriteValue(i);
+                        found = true;
+                        break; 
+                    }
+                }
+                if (!found)
+                {
+                    writer.WriteValue(0); // or some other default value
+                }
+
+                //writer.WriteValue(Outer.Name); // TODO serialize the path too
+            }
+            if (Outer == package)
+            {
+                writer.WritePropertyName("bIsPackaged");
+                writer.WriteValue(true); // TODO serialize the path too
             }
 
             // super
@@ -287,16 +309,26 @@ namespace CUE4Parse.UE4.Assets.Exports
                 writer.WritePropertyName("Template");
                 writer.WriteValue(Template.Name.Text);
             }
-
             // class
             if (Class != null)
             {
                 writer.WritePropertyName("Class");
                 serializer.Serialize(writer, Class.GetFullName());
             }
-
             // export properties
-            if (Properties.Count > 0)
+            var test = package as IoPackage;
+/*            writer.WritePropertyName("ObjectHierarchy");
+            writer.WriteStartArray();
+            foreach (var import in test.ImportMap)
+            {
+                var resolved = test.ResolveObjectIndex(import);
+                resolved.
+                //var sdas = resolved.Package.ResolvePackageIndex(import);
+                serializer.Serialize(writer, resolved);
+
+            }
+            writer.WriteEndArray();*/
+                if (Properties.Count > 0)
             {
                 writer.WritePropertyName("Properties");
                 writer.WriteStartObject();
@@ -305,7 +337,6 @@ namespace CUE4Parse.UE4.Assets.Exports
                     writer.WritePropertyName(property.Name.Text);
                     serializer.Serialize(writer, property.Tag);
                 }
-
                 writer.WriteEndObject();
             }
         }

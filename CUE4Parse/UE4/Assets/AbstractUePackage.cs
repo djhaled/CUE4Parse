@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -167,7 +167,6 @@ namespace CUE4Parse.UE4.Assets
             GetFullName(includeOuterMostName, result, includeClassPackage);
             return result.ToString();
         }
-
         public void GetFullName(bool includeOuterMostName, StringBuilder resultString, bool includeClassPackage = false)
         {
             resultString.Append(includeClassPackage ? Class?.GetPathName() : Class?.Name);
@@ -263,8 +262,20 @@ namespace CUE4Parse.UE4.Assets
             writer.WriteValue(value.GetFullName(false));
 
             writer.WritePropertyName("ObjectPath"); // package path . export index
+
             var outerMostName = outerMost.Name.Text;
             writer.WriteValue(value.ExportIndex != -1 ? $"{outerMostName}.{value.ExportIndex}" : outerMostName);
+            writer.WritePropertyName("ObjectIndex");
+            writer.WriteValue(value.ExportIndex);
+            /*            writer.WritePropertyName("Type");
+                        writer.WriteValue(value.ExportIndex != -1 ? "Export" : "Import");
+                        writer.WritePropertyName("ClassPackage");
+                        writer.WriteValue(value.Name.Text.StartsWith("/Script") ?   value.Name.Text :value.Outer.Name.Text);
+                        writer.WritePropertyName("ClassName");
+                        writer.WriteValue(value.Class.Name.Text);
+                        writer.WritePropertyName("ObjectName");
+                        writer.WriteValue(value.Name.Text);*/
+
 
             writer.WriteEndObject();
         }
